@@ -431,6 +431,106 @@
             window.addNewHeader = addNewHeader;
             window.saveHtml = saveHtml;
         })();
+   <script>
+    // 现有的模块1的JavaScript功能
+    (function() {
+        // 已有的代码内容...
+    })();
+
+    // 现有的模块2的JavaScript功能
+    (function() {
+        let headerCounter = 1;
+
+        function addNewRow() {
+            // 已有的代码内容...
+        }
+
+        function addNewHeader() {
+            // 已有的代码内容...
+        }
+
+        // 保存HTML到本地文件
+        function saveHtml() {
+            // 已有的代码内容...
+        }
+
+        // 复制序列号内容的函数
+        function copySerialNumber(serialCell) {
+            // 已有的代码内容...
+        }
+
+        // 新增数据上传到GitHub的功能
+        async function saveDataToGitHub() {
+            // Step 1: Collect all data from Module 2 tables
+            const tables = document.querySelectorAll('#contentPreview2 table');
+            const data = [];
+
+            tables.forEach((table) => {
+                const rows = table.querySelectorAll('tbody tr');
+                rows.forEach(row => {
+                    const rowData = {};
+                    const cells = row.querySelectorAll('td');
+                    rowData['序号'] = cells[0].textContent.trim();
+                    rowData['SO'] = cells[1].textContent.trim();
+                    rowData['Part No'] = cells[2].textContent.trim();
+                    rowData['Qty'] = cells[3].textContent.trim();
+                    rowData['序列号'] = cells[4].textContent.trim();
+                    rowData['日期'] = cells[5].textContent.trim();
+                    data.push(rowData);
+                });
+            });
+
+            // Step 2: Convert data to JSON format
+            const jsonData = JSON.stringify(data, null, 2);
+            const base64Data = btoa(unescape(encodeURIComponent(jsonData))); // Encode JSON data as Base64
+
+            // Step 3: Prepare GitHub API request
+            const accessToken = 'YOUR_GITHUB_ACCESS_TOKEN'; // Replace with your GitHub access token
+            const repoOwner = 'ricky-cloud-star'; // Your GitHub username
+            const repoName = 'Zenactcod'; // Repository name
+            const filePath = `data/module2_data_${Date.now()}.json`; // Unique filename with timestamp
+
+            const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+            const requestData = {
+                message: 'Save Module 2 data',
+                content: base64Data
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (response.ok) {
+                    alert('数据已成功保存到 GitHub！');
+                } else {
+                    const errorData = await response.json();
+                    alert(`保存失败：${errorData.message}`);
+                }
+            } catch (error) {
+                console.error('保存到 GitHub 过程中发生错误', error);
+                alert('保存过程中出现错误，请检查控制台以获取更多信息。');
+            }
+        }
+
+        // 将保存按钮的点击事件绑定到新的保存函数
+        document.getElementById('saveButton').onclick = function() {
+            saveDataToGitHub();
+        };
+
+        window.addNewRow = addNewRow;
+        window.addNewHeader = addNewHeader;
+        window.saveHtml = saveHtml;
+    })();
+</script>
+</body>
+</html>
+
     </script>
 </body>
 </html>
