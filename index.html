@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
@@ -89,13 +89,13 @@
             text-align: left;
         }
 
-        #partNoInput, #addButton, #addButton2, #saveButton {
+        #partNoInput, #addButton, #addButton2, #saveButton, #fetchButton {
             padding: 8px;
             font-size: 14px;
             margin-right: 5px;
         }
 
-        #addButton, #addButton2, #saveButton {
+        #addButton, #addButton2, #saveButton, #fetchButton {
             background-color: #4caf50;
             color: white;
             border: none;
@@ -103,7 +103,7 @@
             cursor: pointer;
         }
 
-        #addButton:hover, #addButton2:hover, #saveButton:hover {
+        #addButton:hover, #addButton2:hover, #saveButton:hover, #fetchButton:hover {
             background-color: #45a049;
         }
 
@@ -184,6 +184,7 @@
                 <button id="addButton" onclick="addNewRow()">新增</button>
                 <button id="addButton2" onclick="addNewHeader()">新增2</button>
                 <button id="saveButton" onclick="saveHtml()">保存</button>
+                <button id="fetchButton" onclick="fetchDataFromGitHub()">提取数据</button>
             </div>
 
             <!-- 表格显示区域 -->
@@ -408,129 +409,145 @@
                 link.click();
             }
 
-            // 复制序列号内容的函数
-            function copySerialNumber(serialCell) {
-                const serialNumber = serialCell.textContent.trim();
-                if (serialNumber === "") {
-                    alert("序列号为空，无法复制！");
-                    return;
+            // 新增数据上传到GitHub的功能
+            async function saveDataToGitHub() {
+                // Step 1: Collect all data from Module 2 tables
+                const tables = document.querySelectorAll('#contentPreview2 table');
+                const data = [];
+
+                tables.forEach((table) => {
+                    const rows = table.querySelectorAll('tbody tr');
+                    rows.forEach(row => {
+                        const rowData = {};
+                        const cells = row.querySelectorAll('td');
+                        rowData['序号'] = cells[0].textContent.trim();
+                        rowData['SO'] = cells[1].textContent.trim();
+                        rowData['Part No'] = cells[2].textContent.trim();
+                        rowData['Qty'] = cells[3].textContent.trim();
+                        rowData['序列号'] = cells[4].textContent.trim();
+                        rowData['日期'] = cells[5].textContent.trim();
+                        data.push(rowData);
+                    });
+                });
+
+                // Step 2: Convert data to JSON format
+                const jsonData = JSON.stringify(data, null, 2);
+                const base64Data = btoa(unescape(encodeURIComponent(jsonData))); // Encode JSON data as Base64
+
+                // Step 3: Prepare GitHub API request
+                const accessToken = 'YOUR_GITHUB_ACCESS_TOKEN'; // Replace with your GitHub access token
+                const repoOwner = 'ricky-cloud-star'; // Your GitHub username
+                const repoName = 'Zenactcod'; // Repository name
+                const filePath = `data/module2_data_${Date.now()}.json`; // Unique filename with timestamp
+
+                const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+                const requestData = {
+                    message: 'Save Module 2 data',
+                    content: base64Data
+                };
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${accessToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+
+                    if (response.ok) {
+                        alert('数据已成功保存到 GitHub！');
+                    } else {
+                        const errorData = await response.json();
+                        alert(`保存失败：${errorData.message}`);
+                    }
+                } catch (error) {
+                    console.error('保存到 GitHub 过程中发生错误', error);
+                    alert('保存过程中出现错误，请检查控制台以获取更多信息。');
                 }
-
-                // 创建一个临时文本域来复制内容
-                const tempInput = document.createElement('textarea');
-                tempInput.value = serialNumber;
-                document.body.appendChild(tempInput);
-                tempInput.select();
-                document.execCommand('copy');
-                document.body.removeChild(tempInput);
-
-                alert("已复制序列号: " + serialNumber);
             }
+
+            // 新增从GitHub提取数据的功能
+            async function fetchDataFromGitHub() {
+                const repoOwner = 'ricky-cloud-star';
+                const repoName = 'Zenactcod';
+                const accessToken = 'YOUR_GITHUB_ACCESS_TOKEN'; // Replace with your GitHub access token
+                const filePath = `data/module2_data_`; // This is the base part of the filename to match
+                
+                try {
+                    const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/data`, {
+                        headers: {
+                            'Authorization': `token ${accessToken}`
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('无法获取 GitHub 数据');
+                    }
+
+                    const files = await response.json();
+                    const latestFile = files
+                        .filter(file => file.name.startsWith('module2_data_'))
+                        .sort((a, b) => new Date(b.name.slice(13, -5)) - new Date(a.name.slice(13, -5)))[0];
+                    
+                    if (latestFile) {
+                        const latestDataResponse = await fetch(latestFile.download_url);
+                        const jsonData = await latestDataResponse.json();
+
+                        populateTable(jsonData);
+                    } else {
+                        alert('未找到可用的数据文件。');
+                    }
+                } catch (error) {
+                    console.error('从 GitHub 获取数据时发生错误', error);
+                    alert('提取数据过程中出现错误，请检查控制台以获取更多信息。');
+                }
+            }
+
+            function populateTable(data) {
+                const container2 = document.getElementById('contentPreview2');
+                container2.innerHTML = '';
+
+                addNewHeader(); // 添加表头
+
+                const tbody = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
+                data.forEach((rowData, index) => {
+                    const newRow = document.createElement('tr');
+
+                    const serialNumberCell = document.createElement('td');
+                    serialNumberCell.textContent = index + 1;
+                    newRow.appendChild(serialNumberCell);
+
+                    Object.keys(rowData).forEach(key => {
+                        const cell = document.createElement('td');
+                        cell.textContent = rowData[key];
+                        newRow.appendChild(cell);
+                    });
+
+                    const actionCell = document.createElement('td');
+                    const copyButton = document.createElement('button');
+                    copyButton.textContent = "一键复制";
+                    copyButton.className = "copyButton";
+                    actionCell.appendChild(copyButton);
+                    newRow.appendChild(actionCell);
+
+                    tbody.appendChild(newRow);
+                });
+            }
+
+            // 将保存和提取按钮的点击事件绑定到新的函数
+            document.getElementById('saveButton').onclick = function() {
+                saveDataToGitHub();
+            };
+            document.getElementById('fetchButton').onclick = function() {
+                fetchDataFromGitHub();
+            };
 
             window.addNewRow = addNewRow;
             window.addNewHeader = addNewHeader;
             window.saveHtml = saveHtml;
         })();
-   <script>
-    // 现有的模块1的JavaScript功能
-    (function() {
-        // 已有的代码内容...
-    })();
-
-    // 现有的模块2的JavaScript功能
-    (function() {
-        let headerCounter = 1;
-
-        function addNewRow() {
-            // 已有的代码内容...
-        }
-
-        function addNewHeader() {
-            // 已有的代码内容...
-        }
-
-        // 保存HTML到本地文件
-        function saveHtml() {
-            // 已有的代码内容...
-        }
-
-        // 复制序列号内容的函数
-        function copySerialNumber(serialCell) {
-            // 已有的代码内容...
-        }
-
-        // 新增数据上传到GitHub的功能
-        async function saveDataToGitHub() {
-            // Step 1: Collect all data from Module 2 tables
-            const tables = document.querySelectorAll('#contentPreview2 table');
-            const data = [];
-
-            tables.forEach((table) => {
-                const rows = table.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    const rowData = {};
-                    const cells = row.querySelectorAll('td');
-                    rowData['序号'] = cells[0].textContent.trim();
-                    rowData['SO'] = cells[1].textContent.trim();
-                    rowData['Part No'] = cells[2].textContent.trim();
-                    rowData['Qty'] = cells[3].textContent.trim();
-                    rowData['序列号'] = cells[4].textContent.trim();
-                    rowData['日期'] = cells[5].textContent.trim();
-                    data.push(rowData);
-                });
-            });
-
-            // Step 2: Convert data to JSON format
-            const jsonData = JSON.stringify(data, null, 2);
-            const base64Data = btoa(unescape(encodeURIComponent(jsonData))); // Encode JSON data as Base64
-
-            // Step 3: Prepare GitHub API request
-            const accessToken = 'YOUR_GITHUB_ACCESS_TOKEN'; // Replace with your GitHub access token
-            const repoOwner = 'ricky-cloud-star'; // Your GitHub username
-            const repoName = 'Zenactcod'; // Repository name
-            const filePath = `data/module2_data_${Date.now()}.json`; // Unique filename with timestamp
-
-            const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
-            const requestData = {
-                message: 'Save Module 2 data',
-                content: base64Data
-            };
-
-            try {
-                const response = await fetch(url, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${accessToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestData)
-                });
-
-                if (response.ok) {
-                    alert('数据已成功保存到 GitHub！');
-                } else {
-                    const errorData = await response.json();
-                    alert(`保存失败：${errorData.message}`);
-                }
-            } catch (error) {
-                console.error('保存到 GitHub 过程中发生错误', error);
-                alert('保存过程中出现错误，请检查控制台以获取更多信息。');
-            }
-        }
-
-        // 将保存按钮的点击事件绑定到新的保存函数
-        document.getElementById('saveButton').onclick = function() {
-            saveDataToGitHub();
-        };
-
-        window.addNewRow = addNewRow;
-        window.addNewHeader = addNewHeader;
-        window.saveHtml = saveHtml;
-    })();
-</script>
-</body>
-</html>
-
     </script>
 </body>
 </html>
