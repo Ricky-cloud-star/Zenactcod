@@ -121,6 +121,13 @@
         .deleteButton:hover {
             background-color: #d32f2f;
         }
+
+        .deleteHeaderIcon {
+            cursor: pointer;
+            font-size: 18px;
+            color: #f44336;
+            margin-left: 10px;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -181,20 +188,7 @@
 
             <!-- 表格显示区域 -->
             <div id="contentPreview2">
-                <table class="resultTable" id="resultTable2">
-                    <thead>
-                        <tr>
-                            <th>序号</th>
-                            <th>SO</th>
-                            <th>Part No</th>
-                            <th>Qty</th>
-                            <th>序列号</th>
-                            <th>日期</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="resultBody2"></tbody>
-                </table>
+                <!-- 删除原有表头，用户可以自由添加 -->
             </div>
         </div>
     </div>
@@ -312,7 +306,7 @@
                 const newRow = document.createElement('tr');
 
                 const serialNumberCell = document.createElement('td');
-                serialNumberCell.textContent = lastTableBody.rows.length + 1;
+                serialNumberCell.textContent = lastTableBody ? lastTableBody.rows.length + 1 : 1;
                 newRow.appendChild(serialNumberCell);
 
                 const soCell = document.createElement('td');
@@ -358,7 +352,11 @@
 
                 newRow.appendChild(actionCell);
 
-                lastTableBody.appendChild(newRow);
+                if (lastTableBody) {
+                    lastTableBody.appendChild(newRow);
+                } else {
+                    alert("请先新增一个表头。");
+                }
                 partNoInput.value = ""; // 清空输入框
             }
 
@@ -379,6 +377,15 @@
                     headerRow.appendChild(th);
                 });
 
+                // 添加删除表头的垃圾桶图标
+                const deleteHeaderIcon = document.createElement('span');
+                deleteHeaderIcon.className = 'deleteHeaderIcon';
+                deleteHeaderIcon.innerHTML = '🗑️';
+                deleteHeaderIcon.onclick = function() {
+                    container2.removeChild(newTable);
+                };
+                headerRow.appendChild(deleteHeaderIcon);
+
                 thead.appendChild(headerRow);
                 newTable.appendChild(thead);
 
@@ -390,11 +397,14 @@
 
             // 保存HTML到本地文件
             function saveHtml() {
-                const content = document.documentElement.outerHTML;
-                const blob = new Blob([content], { type: "text/html" });
+                // 保存动态内容
+                const container1 = document.getElementById('container1').outerHTML;
+                const container2 = document.getElementById('container2').outerHTML;
+                const html = `<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><title>DTS Software Licensing</title><style>${document.querySelector('style').innerHTML}</style></head><body>${container1}${container2}</body></html>`;
+                const blob = new Blob([html], { type: "text/html" });
                 const link = document.createElement("a");
                 link.href = URL.createObjectURL(blob);
-                link.download = "D:\\常用文件\\邮件信息导出\\模块2.html";
+                link.download = "模块2.html";
                 link.click();
             }
 
