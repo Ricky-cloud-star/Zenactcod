@@ -248,28 +248,24 @@
             const tableData = [];
             document.querySelectorAll(`#contentPreview2 table`).forEach(table => {
                 const headerData = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
+                const tableInfo = { header: headerData, rows: [] };
                 table.querySelectorAll('tbody tr').forEach(row => {
                     const rowData = Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim());
-                    tableData.push({ header: headerData, row: rowData });
+                    tableInfo.rows.push(rowData);
                 });
+                tableData.push(tableInfo);
             });
 
-            // 将数据转换为 CSV 格式字符串
-            let csvContent = "";
-            tableData.forEach((table) => {
-                table.row.forEach((cell, index) => {
-                    csvContent += (index === 0 ? '' : ',') + cell;
-                });
-                csvContent += "\n";
-            });
+            // 将数据转换为 JSON 格式字符串
+            const jsonContent = JSON.stringify(tableData);
 
             try {
                 const response = await fetch('http://127.0.0.1:5000/api/saveData', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'text/plain'
+                        'Content-Type': 'application/json'
                     },
-                    body: csvContent
+                    body: jsonContent
                 });
 
                 if (response.ok) {
@@ -287,13 +283,13 @@
             try {
                 const response = await fetch('http://127.0.0.1:5000/api/getData', {
                     headers: {
-                        'Accept': 'text/plain'
+                        'Accept': 'application/json'
                     }
                 });
 
                 if (response.ok) {
-                    const csvText = await response.text();
-                    populateTable(csvText);
+                    const data = await response.json();
+                    populateTable(data);
                 } else {
                     const responseData = await response.json();
                     alert(`导入失败：${responseData.message}`);
@@ -303,29 +299,52 @@
             }
         }
 
-        function populateTable(csvText) {
-            if (!csvText) {
+        function populateTable(data) {
+            if (!Array.isArray(data) || data.length === 0) {
                 alert('导入的数据为空！');
                 return;
             }
 
-            const rows = csvText.trim().split("\n");
-            addNewHeader();
-            const lastTableBody = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
-            rowCount = 1; // 重置行号
+            const container2 = document.getElementById('contentPreview2');
+            container2.innerHTML = ""; // 清空现有数据
+            headerCounter = 1;
+            rowCount = 1;
 
-            rows.forEach(rowText => {
-                const rowArray = rowText.split(",");
-                const newRow = document.createElement('tr');
+            data.forEach((tableInfo) => {
+                addNewHeader();
+                const lastTableBody = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
 
-                rowArray.forEach(cellText => {
-                    const cell = document.createElement('td');
-                    cell.textContent = cellText;
-                    newRow.appendChild(cell);
+                tableInfo.rows.forEach((rowArray) => {
+                    const newRow = document.createElement('tr');
+
+                    rowArray.forEach(cellText => {
+                        const cell = document.createElement('td');
+                        cell.textContent = cellText;
+                        newRow.appendChild(cell);
+                    });
+
+                    // 重新添加操作按钮
+                    const actionCell = document.createElement('td');
+                    const copyButton = document.createElement('button');
+                    copyButton.textContent = "一键复制";
+                    copyButton.className = "copyButton";
+                    copyButton.onclick = function() {
+                        copySerialNumber(newRow.children[4]);
+                    };
+                    actionCell.appendChild(copyButton);
+
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = "删除";
+                    deleteButton.className = "deleteButton";
+                    deleteButton.onclick = function() {
+                        lastTableBody.removeChild(newRow);
+                    };
+                    actionCell.appendChild(deleteButton);
+
+                    newRow.appendChild(actionCell);
+                    lastTableBody.appendChild(newRow);
+                    rowCount++;
                 });
-
-                lastTableBody.appendChild(newRow);
-                rowCount++;
             });
         }
     </script>
