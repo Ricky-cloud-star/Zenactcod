@@ -38,13 +38,13 @@
             text-align: left;
         }
 
-        #partNoInput, #addButton, #addButton2, #submitButton, #importButton {
+        #partNoInput, #addButton, #submitButton, #importButton {
             padding: 8px;
             font-size: 14px;
             margin-right: 5px;
         }
 
-        #addButton, #addButton2, #submitButton, #importButton {
+        #addButton, #submitButton, #importButton {
             background-color: #4caf50;
             color: white;
             border: none;
@@ -52,30 +52,8 @@
             cursor: pointer;
         }
 
-        #addButton:hover, #addButton2:hover, #submitButton:hover, #importButton:hover {
+        #addButton:hover, #submitButton:hover, #importButton:hover {
             background-color: #45a049;
-        }
-
-        .deleteButton {
-            padding: 5px 10px;
-            font-size: 12px;
-            margin-left: 5px;
-            background-color: #f44336;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .deleteButton:hover {
-            background-color: #d32f2f;
-        }
-
-        .deleteHeaderIcon {
-            cursor: pointer;
-            font-size: 18px;
-            color: #f44336;
-            margin-left: 10px;
         }
 
         .resultTable {
@@ -89,7 +67,6 @@
             padding: 8px;
             text-align: center;
             font-size: 12px;
-            position: relative;
         }
 
         th {
@@ -100,237 +77,160 @@
     </style>
 </head>
 <body>
-    <!-- 第二个模块 -->
     <div class="container" id="container2">
         <div class="leftPanel">
             <h1 class="header">激活码复制</h1>
 
-            <!-- 新建功能：输入框和按钮，移动到表头的左上方，保持一定距离 -->
             <div id="inputContainer">
                 <input type="text" id="partNoInput" placeholder="Enter SO">
                 <button id="addButton" onclick="addNewRow()">新增</button>
-                <button id="addButton2" onclick="addNewHeader()">新增2</button>
                 <button id="submitButton" onclick="submitDataToBackend()">提交数据</button>
                 <button id="importButton" onclick="importDataFromBackend()">导入数据</button>
             </div>
 
-            <!-- 表格显示区域 -->
             <div id="contentPreview2">
-                <!-- 删除原有表头，用户可以自由添加 -->
+                <table class="resultTable" id="resultTable2">
+                    <thead>
+                        <tr>
+                            <th>序号</th>
+                            <th>SO</th>
+                            <th>Part No</th>
+                            <th>Qty</th>
+                            <th>序列号</th>
+                            <th>日期</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
             </div>
         </div>
     </div>
 
     <script>
-        // 模块2的JavaScript功能
-        (function() {
-            let headerCounter = 1;
+        let rowCount = 1;
 
-            function addNewRow() {
-                const partNoInput = document.getElementById('partNoInput');
-                const soValue = partNoInput.value.trim();
+        function addNewRow() {
+            const partNoInput = document.getElementById('partNoInput');
+            const soValue = partNoInput.value.trim();
 
-                if (soValue === "") {
-                    alert("请输入 SO！");
-                    return;
+            if (soValue === "") {
+                alert("请输入 SO！");
+                return;
+            }
+
+            const tableBody = document.querySelector('#resultTable2 tbody');
+            const newRow = document.createElement('tr');
+
+            const serialNumberCell = document.createElement('td');
+            serialNumberCell.textContent = rowCount++;
+            newRow.appendChild(serialNumberCell);
+
+            const soCell = document.createElement('td');
+            soCell.textContent = soValue;
+            newRow.appendChild(soCell);
+
+            const partNoCell = document.createElement('td');
+            partNoCell.contentEditable = true;
+            newRow.appendChild(partNoCell);
+
+            const qtyCell = document.createElement('td');
+            qtyCell.contentEditable = true;
+            newRow.appendChild(qtyCell);
+
+            const serialCell = document.createElement('td');
+            serialCell.contentEditable = true;
+            newRow.appendChild(serialCell);
+
+            const dateCell = document.createElement('td');
+            const today = new Date();
+            const formattedDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+            dateCell.textContent = formattedDate;
+            dateCell.contentEditable = true;
+            newRow.appendChild(dateCell);
+
+            tableBody.appendChild(newRow);
+            partNoInput.value = "";
+        }
+
+        async function submitDataToBackend() {
+            const tableData = [];
+            document.querySelectorAll('#resultTable2 tbody tr').forEach(row => {
+                const rowData = Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim());
+                tableData.push(rowData);
+            });
+
+            // 将数据转换为 CSV 格式字符串
+            let csvContent = "";
+            tableData.forEach((rowArray) => {
+                let row = rowArray.join(",");
+                csvContent += row + "\n";
+            });
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/saveData', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    },
+                    body: csvContent
+                });
+
+                if (response.ok) {
+                    alert('数据已成功提交到服务器！');
+                } else {
+                    const responseData = await response.json();
+                    alert(`提交失败：${responseData.message}`);
                 }
+            } catch (error) {
+                alert(`提交过程中发生错误：${error.message}`);
+            }
+        }
 
-                const lastTableBody = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
+        async function importDataFromBackend() {
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/getData', {
+                    headers: {
+                        'Accept': 'text/plain'
+                    }
+                });
+
+                if (response.ok) {
+                    const csvText = await response.text();
+                    populateTable(csvText);
+                } else {
+                    const responseData = await response.json();
+                    alert(`导入失败：${responseData.message}`);
+                }
+            } catch (error) {
+                alert(`导入过程中发生错误：${error.message}`);
+            }
+        }
+
+        function populateTable(csvText) {
+            if (!csvText) {
+                alert('导入的数据为空！');
+                return;
+            }
+
+            const rows = csvText.trim().split("\n");
+            const tableBody = document.querySelector('#resultTable2 tbody');
+            tableBody.innerHTML = ""; // 清空现有数据
+            rowCount = 1; // 重置行号
+
+            rows.forEach(rowText => {
+                const rowArray = rowText.split(",");
                 const newRow = document.createElement('tr');
 
-                const serialNumberCell = document.createElement('td');
-                serialNumberCell.textContent = lastTableBody ? lastTableBody.rows.length + 1 : 1;
-                newRow.appendChild(serialNumberCell);
-
-                const soCell = document.createElement('td');
-                soCell.textContent = soValue; // 将输入内容添加到 SO 列
-                newRow.appendChild(soCell);
-
-                const partNoCell = document.createElement('td');
-                partNoCell.contentEditable = true; // 允许编辑
-                newRow.appendChild(partNoCell);
-
-                const qtyCell = document.createElement('td');
-                qtyCell.contentEditable = true;
-                newRow.appendChild(qtyCell);
-
-                const serialCell = document.createElement('td');
-                serialCell.contentEditable = true;
-                newRow.appendChild(serialCell);
-
-                const dateCell = document.createElement('td');
-                const today = new Date();
-                const formattedDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-                dateCell.textContent = formattedDate;
-                dateCell.contentEditable = true;
-                newRow.appendChild(dateCell);
-
-                // 添加一键复制按钮和删除按钮
-                const actionCell = document.createElement('td');
-                const copyButton = document.createElement('button');
-                copyButton.textContent = "一键复制";
-                copyButton.className = "copyButton";
-                copyButton.onclick = function() {
-                    copySerialNumber(serialCell);
-                };
-                actionCell.appendChild(copyButton);
-
-                const deleteButton = document.createElement('button');
-                deleteButton.textContent = "删除";
-                deleteButton.className = "deleteButton";
-                deleteButton.onclick = function() {
-                    lastTableBody.removeChild(newRow);
-                };
-                actionCell.appendChild(deleteButton);
-
-                newRow.appendChild(actionCell);
-
-                if (lastTableBody) {
-                    lastTableBody.appendChild(newRow);
-                } else {
-                    alert("请先新增一个表头。");
-                }
-                partNoInput.value = ""; // 清空输入框
-            }
-
-            function addNewHeader() {
-                headerCounter++;
-                const container2 = document.getElementById('contentPreview2');
-                const newTable = document.createElement('table');
-                newTable.className = 'resultTable';
-                newTable.id = `resultTable2_${headerCounter}`;
-
-                const thead = document.createElement('thead');
-                const headerRow = document.createElement('tr');
-                const headers = ['序号', 'SO', 'Part No', 'Qty', '序列号', '日期', '操作'];
-
-                headers.forEach(headerText => {
-                    const th = document.createElement('th');
-                    th.textContent = headerText;
-                    headerRow.appendChild(th);
+                rowArray.forEach(cellText => {
+                    const cell = document.createElement('td');
+                    cell.textContent = cellText;
+                    newRow.appendChild(cell);
                 });
 
-                // 添加删除表头的垃圾桶图标
-                const deleteHeaderIcon = document.createElement('span');
-                deleteHeaderIcon.className = 'deleteHeaderIcon';
-                deleteHeaderIcon.innerHTML = '🗑️';
-                deleteHeaderIcon.onclick = function() {
-                    container2.removeChild(newTable);
-                };
-                headerRow.appendChild(deleteHeaderIcon);
-
-                thead.appendChild(headerRow);
-                newTable.appendChild(thead);
-
-                const tbody = document.createElement('tbody');
-                newTable.appendChild(tbody);
-
-                container2.appendChild(newTable);
-            }
-
-            // 复制序列号内容的函数
-            function copySerialNumber(serialCell) {
-                const serialNumber = serialCell.textContent.trim();
-                if (serialNumber === "") {
-                    alert("序列号为空，无法复制！");
-                    return;
-                }
-
-                // 创建一个临时文本垫来复制内容
-                const tempInput = document.createElement('textarea');
-                tempInput.value = serialNumber;
-                document.body.appendChild(tempInput);
-                tempInput.select();
-                document.execCommand('copy');
-                document.body.removeChild(tempInput);
-
-                alert("已复制序列号: " + serialNumber);
-            }
-
-            // 提交数据到后端的函数
-            async function submitDataToBackend() {
-                const tableData = [];
-                document.querySelectorAll(`#contentPreview2 table`).forEach(table => {
-                    const headerData = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
-                    table.querySelectorAll('tbody tr').forEach(row => {
-                        const rowData = Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim());
-                        tableData.push({ header: headerData, row: rowData });
-                    });
-                });
-
-                try {
-                    const response = await fetch('http://127.0.0.1:5000/api/saveData', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ data: tableData })
-                    });
-
-                    if (response.ok) {
-                        alert('数据已成功提交到服务器！');
-                    } else {
-                        const responseData = await response.json();
-                        alert(`提交失败：${responseData.message}`);
-                    }
-                } catch (error) {
-                    alert(`提交过程中发生错误：${error.message}`);
-                }
-            }
-
-            // 导入数据从后端
-            async function importDataFromBackend() {
-                try {
-                    const response = await fetch('http://127.0.0.1:5000/api/getData', {
-                        headers: {
-                            'Accept': 'application/json'
-                        }
-                    });
-
-                    if (response.ok) {
-                        const data = await response.json();
-                        populateTable(data.data); // 使用 data.data 传递数据数组
-                    } else {
-                        const responseData = await response.json();
-                        alert(`导入失败：${responseData.message}`);
-                    }
-                } catch (error) {
-                    alert(`导入过程中发生错误：${error.message}`);
-                }
-            }
-
-            // 将导入的数据填充到表格中
-            function populateTable(data) {
-                if (!Array.isArray(data)) {
-                    alert('导入的数据格式不正确！');
-                    return;
-                }
-
-                data.forEach((tableData) => {
-                    addNewHeader();
-                    const lastTableBody = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
-
-                    if (Array.isArray(tableData.row)) {
-                        tableData.row.forEach((cellData) => {
-                            const newRow = document.createElement('tr');
-                            cellData.forEach(cell => {
-                                const cellElement = document.createElement('td');
-                                cellElement.textContent = cell;
-                                newRow.appendChild(cellElement);
-                            });
-                            lastTableBody.appendChild(newRow);
-                        });
-                    } else {
-                        alert('导入的数据格式不正确，无法处理行数据。');
-                    }
-                });
-            }
-
-            window.addNewRow = addNewRow;
-            window.addNewHeader = addNewHeader;
-            window.submitDataToBackend = submitDataToBackend;
-            window.importDataFromBackend = importDataFromBackend;
-        })();
+                tableBody.appendChild(newRow);
+                rowCount++;
+            });
+        }
     </script>
 </body>
 </html>
