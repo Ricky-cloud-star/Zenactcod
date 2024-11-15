@@ -310,15 +310,19 @@
                     addNewHeader();
                     const lastTableBody = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
 
-                    tableData.row.forEach((cellData) => {
-                        const newRow = document.createElement('tr');
-                        cellData.forEach(cell => {
-                            const cellElement = document.createElement('td');
-                            cellElement.textContent = cell;
-                            newRow.appendChild(cellElement);
+                    if (Array.isArray(tableData.row)) {
+                        tableData.row.forEach((cellData) => {
+                            const newRow = document.createElement('tr');
+                            cellData.forEach(cell => {
+                                const cellElement = document.createElement('td');
+                                cellElement.textContent = cell;
+                                newRow.appendChild(cellElement);
+                            });
+                            lastTableBody.appendChild(newRow);
                         });
-                        lastTableBody.appendChild(newRow);
-                    });
+                    } else {
+                        alert('导入的数据格式不正确，无法处理行数据。');
+                    }
                 });
             }
 
