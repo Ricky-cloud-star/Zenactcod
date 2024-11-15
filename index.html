@@ -323,10 +323,12 @@
                     currentTable = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
                 } else if (currentTable) {
                     const newRow = document.createElement('tr');
-                    rowArray.forEach(cellText => {
-                        const cell = document.createElement('td');
-                        cell.textContent = cellText;
-                        newRow.appendChild(cell);
+                    rowArray.forEach((cellText, i) => {
+                        if (i < rowArray.length - 1) { // Skip adding text for the '操作' column
+                            const cell = document.createElement('td');
+                            cell.textContent = cellText;
+                            newRow.appendChild(cell);
+                        }
                     });
 
                     // 重新添加操作按钮
