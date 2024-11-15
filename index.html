@@ -250,9 +250,12 @@
             // 提交数据到后端的函数
             async function submitDataToBackend() {
                 const tableData = [];
-                document.querySelectorAll(`#contentPreview2 table tbody tr`).forEach(row => {
-                    const rowData = Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim());
-                    tableData.push(rowData);
+                document.querySelectorAll(`#contentPreview2 table`).forEach(table => {
+                    const headerData = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
+                    table.querySelectorAll('tbody tr').forEach(row => {
+                        const rowData = Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim());
+                        tableData.push({ header: headerData, row: rowData });
+                    });
                 });
 
                 try {
@@ -275,19 +278,18 @@
                 }
             }
 
-            // 导入数据从后端的函数
+            // 导入数据从后端
             async function importDataFromBackend() {
                 try {
-                    const response = await fetch('https://api.github.com/repos/Ricky-cloud-star/Zenactcod/contents/data.json', {
-                        method: 'GET',
+                    const response = await fetch('http://127.0.0.1:5000/api/getData', {
                         headers: {
-                            'Accept': 'application/vnd.github.v3.raw'
+                            'Accept': 'application/json'
                         }
                     });
 
                     if (response.ok) {
                         const data = await response.json();
-                        populateTableWithData(data);
+                        populateTable(data);
                     } else {
                         const responseData = await response.json();
                         alert(`导入失败：${responseData.message}`);
@@ -297,20 +299,26 @@
                 }
             }
 
-            // 使用从后端导入的数据填充表格
-            function populateTableWithData(data) {
-                addNewHeader();
-                const tbody = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
-                data.forEach((rowData, index) => {
-                    const newRow = document.createElement('tr');
+            // 将导入的数据填充到表格中
+            function populateTable(data) {
+                if (!Array.isArray(data)) {
+                    alert('导入的数据格式不正确！');
+                    return;
+                }
 
-                    rowData.forEach(cellData => {
-                        const newCell = document.createElement('td');
-                        newCell.textContent = cellData;
-                        newRow.appendChild(newCell);
+                data.forEach((tableData) => {
+                    addNewHeader();
+                    const lastTableBody = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
+
+                    tableData.row.forEach((row) => {
+                        const newRow = document.createElement('tr');
+                        row.forEach(cellData => {
+                            const cell = document.createElement('td');
+                            cell.textContent = cellData;
+                            newRow.appendChild(cell);
+                        });
+                        lastTableBody.appendChild(newRow);
                     });
-
-                    tbody.appendChild(newRow);
                 });
             }
 
