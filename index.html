@@ -38,13 +38,13 @@
             text-align: left;
         }
 
-        #partNoInput, #addButton, #submitButton, #importButton {
+        #partNoInput, #addButton, #addButton2, #submitButton, #importButton {
             padding: 8px;
             font-size: 14px;
             margin-right: 5px;
         }
 
-        #addButton, #submitButton, #importButton {
+        #addButton, #addButton2, #submitButton, #importButton {
             background-color: #4caf50;
             color: white;
             border: none;
@@ -52,8 +52,30 @@
             cursor: pointer;
         }
 
-        #addButton:hover, #submitButton:hover, #importButton:hover {
+        #addButton:hover, #addButton2:hover, #submitButton:hover, #importButton:hover {
             background-color: #45a049;
+        }
+
+        .deleteButton {
+            padding: 5px 10px;
+            font-size: 12px;
+            margin-left: 5px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .deleteButton:hover {
+            background-color: #d32f2f;
+        }
+
+        .deleteHeaderIcon {
+            cursor: pointer;
+            font-size: 18px;
+            color: #f44336;
+            margin-left: 10px;
         }
 
         .resultTable {
@@ -67,6 +89,7 @@
             padding: 8px;
             text-align: center;
             font-size: 12px;
+            position: relative;
         }
 
         th {
@@ -84,29 +107,19 @@
             <div id="inputContainer">
                 <input type="text" id="partNoInput" placeholder="Enter SO">
                 <button id="addButton" onclick="addNewRow()">新增</button>
+                <button id="addButton2" onclick="addNewHeader()">新增2</button>
                 <button id="submitButton" onclick="submitDataToBackend()">提交数据</button>
                 <button id="importButton" onclick="importDataFromBackend()">导入数据</button>
             </div>
 
             <div id="contentPreview2">
-                <table class="resultTable" id="resultTable2">
-                    <thead>
-                        <tr>
-                            <th>序号</th>
-                            <th>SO</th>
-                            <th>Part No</th>
-                            <th>Qty</th>
-                            <th>序列号</th>
-                            <th>日期</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+                <!-- 表格显示区域，用户可以自由添加 -->
             </div>
         </div>
     </div>
 
     <script>
+        let headerCounter = 1;
         let rowCount = 1;
 
         function addNewRow() {
@@ -118,7 +131,12 @@
                 return;
             }
 
-            const tableBody = document.querySelector('#resultTable2 tbody');
+            const lastTableBody = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
+            if (!lastTableBody) {
+                alert("请先新增一个表头。");
+                return;
+            }
+
             const newRow = document.createElement('tr');
 
             const serialNumberCell = document.createElement('td');
@@ -148,22 +166,101 @@
             dateCell.contentEditable = true;
             newRow.appendChild(dateCell);
 
-            tableBody.appendChild(newRow);
+            // 添加一键复制按钮和删除按钮
+            const actionCell = document.createElement('td');
+            const copyButton = document.createElement('button');
+            copyButton.textContent = "一键复制";
+            copyButton.className = "copyButton";
+            copyButton.onclick = function() {
+                copySerialNumber(serialCell);
+            };
+            actionCell.appendChild(copyButton);
+
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = "删除";
+            deleteButton.className = "deleteButton";
+            deleteButton.onclick = function() {
+                lastTableBody.removeChild(newRow);
+            };
+            actionCell.appendChild(deleteButton);
+
+            newRow.appendChild(actionCell);
+
+            lastTableBody.appendChild(newRow);
             partNoInput.value = "";
+        }
+
+        function addNewHeader() {
+            headerCounter++;
+            const container2 = document.getElementById('contentPreview2');
+            const newTable = document.createElement('table');
+            newTable.className = 'resultTable';
+            newTable.id = `resultTable2_${headerCounter}`;
+
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            const headers = ['序号', 'SO', 'Part No', 'Qty', '序列号', '日期', '操作'];
+
+            headers.forEach(headerText => {
+                const th = document.createElement('th');
+                th.textContent = headerText;
+                headerRow.appendChild(th);
+            });
+
+            // 添加删除表头的垃圾桶图标
+            const deleteHeaderIcon = document.createElement('span');
+            deleteHeaderIcon.className = 'deleteHeaderIcon';
+            deleteHeaderIcon.innerHTML = '🗑️';
+            deleteHeaderIcon.onclick = function() {
+                container2.removeChild(newTable);
+            };
+            headerRow.appendChild(deleteHeaderIcon);
+
+            thead.appendChild(headerRow);
+            newTable.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            newTable.appendChild(tbody);
+
+            container2.appendChild(newTable);
+        }
+
+        // 复制序列号内容的函数
+        function copySerialNumber(serialCell) {
+            const serialNumber = serialCell.textContent.trim();
+            if (serialNumber === "") {
+                alert("序列号为空，无法复制！");
+                return;
+            }
+
+            // 创建一个临时文本区域来复制内容
+            const tempInput = document.createElement('textarea');
+            tempInput.value = serialNumber;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            alert("已复制序列号: " + serialNumber);
         }
 
         async function submitDataToBackend() {
             const tableData = [];
-            document.querySelectorAll('#resultTable2 tbody tr').forEach(row => {
-                const rowData = Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim());
-                tableData.push(rowData);
+            document.querySelectorAll(`#contentPreview2 table`).forEach(table => {
+                const headerData = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
+                table.querySelectorAll('tbody tr').forEach(row => {
+                    const rowData = Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim());
+                    tableData.push({ header: headerData, row: rowData });
+                });
             });
 
             // 将数据转换为 CSV 格式字符串
             let csvContent = "";
-            tableData.forEach((rowArray) => {
-                let row = rowArray.join(",");
-                csvContent += row + "\n";
+            tableData.forEach((table) => {
+                table.row.forEach((cell, index) => {
+                    csvContent += (index === 0 ? '' : ',') + cell;
+                });
+                csvContent += "\n";
             });
 
             try {
@@ -213,8 +310,8 @@
             }
 
             const rows = csvText.trim().split("\n");
-            const tableBody = document.querySelector('#resultTable2 tbody');
-            tableBody.innerHTML = ""; // 清空现有数据
+            addNewHeader();
+            const lastTableBody = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
             rowCount = 1; // 重置行号
 
             rows.forEach(rowText => {
@@ -227,7 +324,7 @@
                     newRow.appendChild(cell);
                 });
 
-                tableBody.appendChild(newRow);
+                lastTableBody.appendChild(newRow);
                 rowCount++;
             });
         }
