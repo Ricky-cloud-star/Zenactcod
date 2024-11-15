@@ -110,7 +110,7 @@
                 <input type="text" id="partNoInput" placeholder="Enter SO">
                 <button id="addButton" onclick="addNewRow()">新增</button>
                 <button id="addButton2" onclick="addNewHeader()">新增2</button>
-                <button id="submitButton" onclick="submitDataToGitHub()">提交数据</button>
+                <button id="submitButton" onclick="submitDataToBackend()">提交数据</button>
             </div>
 
             <!-- 表格显示区域 -->
@@ -246,42 +246,25 @@
                 alert("已复制序列号: " + serialNumber);
             }
 
-            // 提交数据到 GitHub 的函数
-            async function submitDataToGitHub() {
-                const githubToken = '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'; // 请将此处替换为你的 GitHub 访问 Token
-                const owner = 'Ricky-cloud-star';
-                const repo = 'Zenactcod';
-                const path = 'data.json'; // 保存数据的文件路径
-                const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-
-                // 构造要提交的数据
+            // 提交数据到后端的函数
+            async function submitDataToBackend() {
                 const tableData = [];
                 document.querySelectorAll(`#contentPreview2 table tbody tr`).forEach(row => {
                     const rowData = Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim());
                     tableData.push(rowData);
                 });
 
-                // 将数据转化为 Base64 格式
-                const fileContent = JSON.stringify(tableData);
-                const base64Content = btoa(unescape(encodeURIComponent(fileContent)));
-
-                // 发送请求
                 try {
-                    const response = await fetch(apiUrl, {
-                        method: 'PUT',
+                    const response = await fetch('http://127.0.0.1:5000/api/saveData', {
+                        method: 'POST',
                         headers: {
-                            'Authorization': `token ${githubToken}`,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({
-                            message: '提交模块2的数据',
-                            content: base64Content,
-                            branch: 'main' // 或者你的目标分支
-                        })
+                        body: JSON.stringify({ data: tableData })
                     });
 
                     if (response.ok) {
-                        alert('数据已成功提交到 GitHub！');
+                        alert('数据已成功提交到服务器！');
                     } else {
                         const responseData = await response.json();
                         alert(`提交失败：${responseData.message}`);
@@ -293,7 +276,7 @@
 
             window.addNewRow = addNewRow;
             window.addNewHeader = addNewHeader;
-            window.submitDataToGitHub = submitDataToGitHub;
+            window.submitDataToBackend = submitDataToBackend;
         })();
     </script>
 </body>
