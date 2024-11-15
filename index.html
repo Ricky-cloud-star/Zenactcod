@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>DTS Software Licensing</title>
+    <title>激活码复制</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -27,60 +27,9 @@
             margin-right: 20px;
         }
 
-        .rightPanel { 
-            font-size: 10px;
-            flex: 0 0 300px;
-            height: 125px;
-            background-color: #f1f3f5;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
-
         .header {
             text-align: center;
             margin-bottom: 20px;
-        }
-
-        .searchContainer {
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        #resultTable1 {
-            width: 140%;
-            margin: 0 auto;
-        }
-
-        .resultTable {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: center;
-            font-size: 12px;
-            position: relative;
-        }
-
-        th {
-            background-color: #607d8b;
-            color: #fff;
-            font-size: 12px;
-        }
-
-        .copyIcon {
-            position: absolute;
-            top: 50%;
-            right: 5px;
-            transform: translateY(-50%);
-            cursor: pointer;
-            font-size: 14px;
-            color: #2196f3;
         }
 
         #inputContainer {
@@ -89,13 +38,13 @@
             text-align: left;
         }
 
-        #partNoInput, #addButton, #addButton2, #saveButton {
+        #partNoInput, #addButton, #addButton2, #submitButton {
             padding: 8px;
             font-size: 14px;
             margin-right: 5px;
         }
 
-        #addButton, #addButton2, #saveButton {
+        #addButton, #addButton2, #submitButton {
             background-color: #4caf50;
             color: white;
             border: none;
@@ -103,7 +52,7 @@
             cursor: pointer;
         }
 
-        #addButton:hover, #addButton2:hover, #saveButton:hover {
+        #addButton:hover, #addButton2:hover, #submitButton:hover {
             background-color: #45a049;
         }
 
@@ -128,51 +77,29 @@
             color: #f44336;
             margin-left: 10px;
         }
+
+        .resultTable {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+            font-size: 12px;
+            position: relative;
+        }
+
+        th {
+            background-color: #607d8b;
+            color: #fff;
+            font-size: 12px;
+        }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
-    <!-- 第一个模块 -->
-    <div class="container" id="container1">
-        <div class="leftPanel">
-            <h1 class="header">DTS Software Licensing</h1>
-
-            <!-- 选择文件按钮 -->
-            <div class="fileContainer" style="text-align: center; margin-bottom: 20px;">
-                <input type="file" id="fileInput1" accept=".xlsx, .xlsm, .xls" />
-            </div>
-
-            <!-- 输入框和搜索按钮 -->
-            <div class="searchContainer">
-                <input type="text" class="jdeOrderNumber" id="jdeOrderNumber1" placeholder="Enter JDE Order Number">
-                <button class="searchButton" onclick="handleSearch1()">Search</button>
-                <button class="clearButton" onclick="clearResults1()">Clear</button>
-            </div>
-
-            <!-- 表格显示区域 -->
-            <div id="contentPreview1">
-                <table class="resultTable" id="resultTable1">
-                    <thead>
-                        <tr>
-                            <th>JDE Order Type</th>
-                            <th>JDE Order Number</th>
-                            <th>Shipping Contact: First Name</th>
-                            <th>Shipping Contact: Last Name</th>
-                            <th>Shipping Contact: Email</th>
-                            <th>Company to ship: JDE Address Number</th>
-                            <th>Company to ship: Account Name</th>
-                        </tr>
-                    </thead>
-                    <tbody id="resultBody1"></tbody>
-                </table>
-            </div>
-        </div>
-        <div class="rightPanel">
-            <h3>查询结果</h3>
-            <div id="rowPosition1">请先选择文件并输入JDE Order Number。</div>
-        </div>
-    </div>
-
     <!-- 第二个模块 -->
     <div class="container" id="container2">
         <div class="leftPanel">
@@ -183,7 +110,7 @@
                 <input type="text" id="partNoInput" placeholder="Enter SO">
                 <button id="addButton" onclick="addNewRow()">新增</button>
                 <button id="addButton2" onclick="addNewHeader()">新增2</button>
-                <button id="saveButton" onclick="saveHtml()">保存</button>
+                <button id="submitButton" onclick="submitDataToGitHub()">提交数据</button>
             </div>
 
             <!-- 表格显示区域 -->
@@ -194,101 +121,6 @@
     </div>
 
     <script>
-        // 模块1的JavaScript功能
-        (function() {
-            let workbook1;
-
-            document.getElementById('fileInput1').addEventListener('change', handleFile1);
-
-            function handleFile1(event) {
-                const file = event.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const data = new Uint8Array(e.target.result);
-                        workbook1 = XLSX.read(data, { type: 'array' });
-                        document.getElementById('rowPosition1').textContent = `已选择文件：${file.name}`;
-                    };
-                    reader.readAsArrayBuffer(file);
-                }
-            }
-
-            function handleSearch1() {
-                if (!workbook1) {
-                    alert("请先选择Excel文件。");
-                    return;
-                }
-
-                const worksheet = workbook1.Sheets['Sheet1'];
-                if (!worksheet) {
-                    document.getElementById('rowPosition1').textContent = "未找到Sheet1。";
-                    return;
-                }
-
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                const inputOrderNumber = document.getElementById('jdeOrderNumber1').value.trim();
-                const resultBody = document.getElementById('resultBody1');
-                resultBody.innerHTML = '';
-
-                let found = false;
-                for (let i = 1; i < jsonData.length; i++) {
-                    const row = jsonData[i];
-                    const orderNumber = row[1];
-                    if (orderNumber && orderNumber.toString() === inputOrderNumber) {
-                        const resultRow = document.createElement('tr');
-                        for (let j = 0; j < 7; j++) {
-                            const cell = document.createElement('td');
-                            cell.textContent = row[j] !== undefined ? row[j] : '';
-                            
-                            // 添加复制图标
-                            const copyIcon = document.createElement('span');
-                            copyIcon.className = 'copyIcon';
-                            copyIcon.innerHTML = '📋';
-                            copyIcon.onclick = function() {
-                                copyCellContent(cell);
-                            };
-                            cell.appendChild(copyIcon);
-                            
-                            resultRow.appendChild(cell);
-                        }
-                        resultBody.appendChild(resultRow);
-                        document.getElementById('rowPosition1').textContent += `\n找到匹配数据，所在行：${i + 1}`;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    document.getElementById('rowPosition1').textContent += "\n未找到订单数据。";
-                }
-            }
-
-            function clearResults1() {
-                document.getElementById('resultBody1').innerHTML = '';
-                document.getElementById('rowPosition1').textContent = '请先选择文件并输入JDE Order Number。';
-                document.getElementById('jdeOrderNumber1').value = '';
-            }
-
-            function copyCellContent(cell) {
-                const cellContent = cell.textContent.trim();
-                if (cellContent === '') {
-                    alert("单元格内容为空，无法复制！");
-                    return;
-                }
-
-                const tempInput = document.createElement('textarea');
-                tempInput.value = cellContent;
-                document.body.appendChild(tempInput);
-                tempInput.select();
-                document.execCommand('copy');
-                document.body.removeChild(tempInput);
-
-                alert("已复制内容: " + cellContent);
-            }
-
-            window.handleSearch1 = handleSearch1;
-            window.clearResults1 = clearResults1;
-        })();
-
         // 模块2的JavaScript功能
         (function() {
             let headerCounter = 1;
@@ -395,19 +227,6 @@
                 container2.appendChild(newTable);
             }
 
-            // 保存HTML到本地文件
-            function saveHtml() {
-                // 保存动态内容
-                const container1 = document.getElementById('container1').outerHTML;
-                const container2 = document.getElementById('container2').outerHTML;
-                const html = `<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><title>DTS Software Licensing</title><style>${document.querySelector('style').innerHTML}</style></head><body>${container1}${container2}</body></html>`;
-                const blob = new Blob([html], { type: "text/html" });
-                const link = document.createElement("a");
-                link.href = URL.createObjectURL(blob);
-                link.download = "模块2.html";
-                link.click();
-            }
-
             // 复制序列号内容的函数
             function copySerialNumber(serialCell) {
                 const serialNumber = serialCell.textContent.trim();
@@ -416,7 +235,7 @@
                     return;
                 }
 
-                // 创建一个临时文本域来复制内容
+                // 创建一个临时文本垫来复制内容
                 const tempInput = document.createElement('textarea');
                 tempInput.value = serialNumber;
                 document.body.appendChild(tempInput);
@@ -427,9 +246,14 @@
                 alert("已复制序列号: " + serialNumber);
             }
 
+            // 提交数据到 GitHub 的函数
+            async function submitDataToGitHub() {
+                alert("提交数据功能尚未实现。请确保您有 GitHub API 的访问权限，并在代码中实现提交逻辑。");
+            }
+
             window.addNewRow = addNewRow;
             window.addNewHeader = addNewHeader;
-            window.saveHtml = saveHtml;
+            window.submitDataToGitHub = submitDataToGitHub;
         })();
     </script>
 </body>
