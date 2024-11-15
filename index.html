@@ -289,7 +289,7 @@
 
                     if (response.ok) {
                         const data = await response.json();
-                        populateTable(data);
+                        populateTable(data.data); // 使用 data.data 传递数据数组
                     } else {
                         const responseData = await response.json();
                         alert(`导入失败：${responseData.message}`);
@@ -310,12 +310,12 @@
                     addNewHeader();
                     const lastTableBody = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
 
-                    tableData.row.forEach((row) => {
+                    tableData.row.forEach((cellData) => {
                         const newRow = document.createElement('tr');
-                        row.forEach(cellData => {
-                            const cell = document.createElement('td');
-                            cell.textContent = cellData;
-                            newRow.appendChild(cell);
+                        cellData.forEach(cell => {
+                            const cellElement = document.createElement('td');
+                            cellElement.textContent = cell;
+                            newRow.appendChild(cellElement);
                         });
                         lastTableBody.appendChild(newRow);
                     });
