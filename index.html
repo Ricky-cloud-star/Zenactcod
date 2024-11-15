@@ -256,16 +256,22 @@
                 tableData.push(tableInfo);
             });
 
-            // 将数据转换为 JSON 格式字符串
-            const jsonContent = JSON.stringify(tableData);
+            // 将数据转换为 CSV 格式字符串
+            let csvContent = "";
+            tableData.forEach((table) => {
+                csvContent += table.header.join(",") + "\n";
+                table.rows.forEach(row => {
+                    csvContent += row.join(",") + "\n";
+                });
+            });
 
             try {
                 const response = await fetch('http://127.0.0.1:5000/api/saveData', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'text/plain'
                     },
-                    body: jsonContent
+                    body: csvContent
                 });
 
                 if (response.ok) {
@@ -283,13 +289,13 @@
             try {
                 const response = await fetch('http://127.0.0.1:5000/api/getData', {
                     headers: {
-                        'Accept': 'application/json'
+                        'Accept': 'text/plain'
                     }
                 });
 
                 if (response.ok) {
-                    const data = await response.json();
-                    populateTable(data);
+                    const csvText = await response.text();
+                    populateTable(csvText);
                 } else {
                     const responseData = await response.json();
                     alert(`导入失败：${responseData.message}`);
@@ -299,24 +305,24 @@
             }
         }
 
-        function populateTable(data) {
-            if (!Array.isArray(data) || data.length === 0) {
+        function populateTable(csvText) {
+            if (!csvText) {
                 alert('导入的数据为空！');
                 return;
             }
 
-            const container2 = document.getElementById('contentPreview2');
-            container2.innerHTML = ""; // 清空现有数据
+            const rows = csvText.trim().split("\n");
+            let currentTable;
             headerCounter = 1;
             rowCount = 1;
 
-            data.forEach((tableInfo) => {
-                addNewHeader();
-                const lastTableBody = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
-
-                tableInfo.rows.forEach((rowArray) => {
+            rows.forEach((rowText, index) => {
+                const rowArray = rowText.split(",");
+                if (index === 0 || rowArray[0] === '序号') {
+                    addNewHeader();
+                    currentTable = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
+                } else if (currentTable) {
                     const newRow = document.createElement('tr');
-
                     rowArray.forEach(cellText => {
                         const cell = document.createElement('td');
                         cell.textContent = cellText;
@@ -337,14 +343,14 @@
                     deleteButton.textContent = "删除";
                     deleteButton.className = "deleteButton";
                     deleteButton.onclick = function() {
-                        lastTableBody.removeChild(newRow);
+                        currentTable.removeChild(newRow);
                     };
                     actionCell.appendChild(deleteButton);
 
                     newRow.appendChild(actionCell);
-                    lastTableBody.appendChild(newRow);
+                    currentTable.appendChild(newRow);
                     rowCount++;
-                });
+                }
             });
         }
     </script>
