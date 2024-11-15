@@ -248,7 +248,47 @@
 
             // 提交数据到 GitHub 的函数
             async function submitDataToGitHub() {
-                alert("提交数据功能尚未实现。请确保您有 GitHub API 的访问权限，并在代码中实现提交逻辑。");
+                const githubToken = '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'; // 请将此处替换为你的 GitHub 访问 Token
+                const owner = 'Ricky-cloud-star';
+                const repo = 'Zenactcod';
+                const path = 'data.json'; // 保存数据的文件路径
+                const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+
+                // 构造要提交的数据
+                const tableData = [];
+                document.querySelectorAll(`#contentPreview2 table tbody tr`).forEach(row => {
+                    const rowData = Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim());
+                    tableData.push(rowData);
+                });
+
+                // 将数据转化为 Base64 格式
+                const fileContent = JSON.stringify(tableData);
+                const base64Content = btoa(unescape(encodeURIComponent(fileContent)));
+
+                // 发送请求
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${githubToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: '提交模块2的数据',
+                            content: base64Content,
+                            branch: 'main' // 或者你的目标分支
+                        })
+                    });
+
+                    if (response.ok) {
+                        alert('数据已成功提交到 GitHub！');
+                    } else {
+                        const responseData = await response.json();
+                        alert(`提交失败：${responseData.message}`);
+                    }
+                } catch (error) {
+                    alert(`提交过程中发生错误：${error.message}`);
+                }
             }
 
             window.addNewRow = addNewRow;
