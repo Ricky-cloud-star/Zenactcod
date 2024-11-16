@@ -109,7 +109,7 @@
                 <button id="addButton" onclick="addNewRow()">新增</button>
                 <button id="addButton2" onclick="addNewHeader()">新增2</button>
                 <button id="submitButton" onclick="submitDataToBackend()">提交数据</button>
-                <button id="importButton" onclick="importDataFromBackend()">导入数据</button>
+                <button id="importButton" onclick="importDataFromGithub()">导入数据</button>
             </div>
 
             <div id="contentPreview2">
@@ -244,58 +244,32 @@
             alert("已复制序列号: " + serialNumber);
         }
 
-        async function submitDataToBackend() {
-            const tableData = [];
-            document.querySelectorAll(`#contentPreview2 table`).forEach(table => {
-                const headerData = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
-                const tableInfo = { header: headerData, rows: [] };
-                table.querySelectorAll('tbody tr').forEach(row => {
-                    const rowData = Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim());
-                    tableInfo.rows.push(rowData);
-                });
-                tableData.push(tableInfo);
-            });
-
-            // 将数据转换为 CSV 格式字符串
-            let csvContent = "";
-            tableData.forEach((table) => {
-                csvContent += table.header.join(",") + "\n";
-                table.rows.forEach(row => {
-                    csvContent += row.join(",") + "\n";
-                });
-            });
-
-            try {
-                const response = await fetch('http://127.0.0.1:5000/api/saveData', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'text/plain'
-                    },
-                    body: csvContent
-                });
-
-                if (response.ok) {
-                    alert('数据已成功提交到服务器！');
-                } else {
-                    const responseData = await response.json();
-                    alert(`提交失败：${responseData.message}`);
-                }
-            } catch (error) {
-                alert(`提交过程中发生错误：${error.message}`);
+        async function importDataFromGithub() {
+            // 1. 弹窗让用户输入GitHub令牌
+            const githubToken = prompt("请输入您的 GitHub 令牌：");
+            if (!githubToken) {
+                alert("令牌不能为空！");
+                return;
             }
-        }
 
-        async function importDataFromBackend() {
             try {
-                const response = await fetch('http://127.0.0.1:5000/api/getData', {
+                // 2. 通过GitHub API获取数据
+                const repoOwner = 'Ricky-cloud-star';  // 替换为您的GitHub用户名
+                const repoName = 'Zenactcod';           // 替换为您的仓库名称
+                const filePath = 'data/data.csv';       // 替换为文件路径，例如 'data/data.csv'
+                const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+
+                const response = await fetch(url, {
+                    method: 'GET',
                     headers: {
-                        'Accept': 'text/plain'
+                        'Authorization': `token ${githubToken}`,
+                        'Accept': 'application/vnd.github.v3.raw'
                     }
                 });
 
                 if (response.ok) {
                     const csvText = await response.text();
-                    populateTable(csvText);
+                    populateTable(csvText); // 调用现有的函数以将数据填入页面
                 } else {
                     const responseData = await response.json();
                     alert(`导入失败：${responseData.message}`);
