@@ -108,7 +108,7 @@
                 <input type="text" id="partNoInput" placeholder="Enter SO">
                 <button id="addButton" onclick="addNewRow()">新增</button>
                 <button id="addButton2" onclick="addNewHeader()">新增2</button>
-                <button id="submitButton" onclick="submitDataToBackend()">提交数据</button>
+                <button id="submitButton" onclick="submitDataToGithub()">提交数据</button>
                 <button id="importButton" onclick="importDataFromGithub()">导入数据</button>
             </div>
 
@@ -330,7 +330,14 @@
             });
         }
 
-        async function submitDataToBackend() {
+        async function submitDataToGithub() {
+            // 1. 弹窗让用户输入GitHub令牌
+            const githubToken = prompt("请输入您的 GitHub 令牌：");
+            if (!githubToken) {
+                alert("令牌不能为空！");
+                return;
+            }
+
             const tableData = [];
             document.querySelectorAll(`#contentPreview2 table`).forEach(table => {
                 const headerData = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
@@ -352,19 +359,52 @@
             });
 
             try {
-                const response = await fetch('http://127.0.0.1:5000/api/saveData', {
-                    method: 'POST',
+                // 2. 通过GitHub API提交数据
+                const repoOwner = 'Ricky-cloud-star';  // 替换为您的GitHub用户名
+                const repoName = 'Zenactcod';           // 替换为您的仓库名称
+                const filePath = 'data/data.csv';       // 替换为文件路径，例如 'data/data.csv'
+                const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+
+                // 对 CSV 内容进行 Base64 编码
+                const content = btoa(unescape(encodeURIComponent(csvContent)));
+
+                // 获取文件的 sha 值
+                let sha = null;
+                const getResponse = await fetch(url, {
+                    method: 'GET',
                     headers: {
-                        'Content-Type': 'text/plain'
-                    },
-                    body: csvContent
+                        'Authorization': `token ${githubToken}`,
+                        'Accept': 'application/vnd.github.v3.raw'
+                    }
                 });
 
-                if (response.ok) {
-                    alert('数据已成功提交到服务器！');
+                if (getResponse.ok) {
+                    const fileData = await getResponse.json();
+                    sha = fileData.sha;
+                }
+
+                // 构建 GitHub 请求的 payload
+                const payload = {
+                    "message": "Update data",
+                    "content": content,
+                    "sha": sha
+                };
+
+                // 发送 PUT 请求以在 GitHub 上创建或更新文件
+                const putResponse = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${githubToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (putResponse.ok) {
+                    alert('数据已成功保存到 GitHub！');
                 } else {
-                    const responseData = await response.json();
-                    alert(`提交失败：${responseData.message}`);
+                    const responseData = await putResponse.json();
+                    alert(`保存到 GitHub 时发生错误：${responseData.message}`);
                 }
             } catch (error) {
                 alert(`提交过程中发生错误：${error.message}`);
