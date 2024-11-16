@@ -226,11 +226,12 @@
 </body>
 </html>
 
-<!DOCTYPE html>
+
+<!DOCTYPE html> 
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>激活码复制</title>
+    <title>Zen激活码辅助工具</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -248,6 +249,7 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             display: flex;
             margin-top: 20px;
+            position: relative;
         }
 
         .leftPanel {
@@ -325,24 +327,44 @@
             color: #fff;
             font-size: 12px;
         }
+
+        #responseBox {
+            width: 300px;
+            height: 50px;
+            border: 1px solid gray;
+            padding: 10px;
+            background-color: #f9f9f9;
+            position: absolute;
+            top: 60px;
+            right: 20px;
+        }
+
+        #responseTitle {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
     <div class="container" id="container2">
         <div class="leftPanel">
-            <h1 class="header">激活码复制</h1>
+            <h1 class="header">Zen激活码辅助工具</h1>
 
             <div id="inputContainer">
                 <input type="text" id="partNoInput" placeholder="Enter SO">
                 <button id="addButton" onclick="addNewRow()">新增</button>
                 <button id="addButton2" onclick="addNewHeader()">新增2</button>
-                <button id="submitButton" onclick="submitDataToGithub()">提交数据</button>
+                <button id="submitButton" onclick="submitDataToBackend()">提交数据</button>
                 <button id="importButton" onclick="importDataFromGithub()">导入数据</button>
             </div>
 
             <div id="contentPreview2">
                 <!-- 表格显示区域，用户可以自由添加 -->
             </div>
+        </div>
+        <div id="responseBox">
+            <div id="responseTitle">响应窗口</div>
+            <div id="responseMessage"></div>
         </div>
     </div>
 
@@ -457,7 +479,7 @@
         function copySerialNumber(serialCell) {
             const serialNumber = serialCell.textContent.trim();
             if (serialNumber === "") {
-                alert("序列号为空，无法复制！");
+                updateResponseBox("序列号为空，无法复制！");
                 return;
             }
 
@@ -469,10 +491,47 @@
             document.execCommand('copy');
             document.body.removeChild(tempInput);
 
-            alert("已复制序列号: " + serialNumber);
+            updateResponseBox("已复制序列号: " + serialNumber);
+        }
+
+        function addCopyToSOCells() {
+            document.querySelectorAll(`#contentPreview2 table tbody tr`).forEach(row => {
+                const soCell = row.children[1]; // Assuming the SO column is the second column
+                if (soCell && !soCell.querySelector('.copyIcon')) {
+                    const copyIcon = document.createElement('span');
+                    copyIcon.textContent = '📋';
+                    copyIcon.style.cursor = 'pointer';
+                    copyIcon.className = 'copyIcon';
+                    copyIcon.style.marginLeft = '5px';
+                    copyIcon.onclick = function() {
+                        copySO(soCell);
+                    };
+                    soCell.appendChild(copyIcon);
+                }
+            });
+        }
+
+        function copySO(soCell) {
+            const soNumber = soCell.childNodes[0] ? soCell.childNodes[0].textContent.trim() : soCell.textContent.trim();
+            if (soNumber === "") {
+                updateResponseBox("SO 号为空，无法复制！");
+                return;
+            }
+
+            // 创建一个临时文本区域来复制内容
+            const tempInput = document.createElement('textarea');
+            tempInput.value = soNumber;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            updateResponseBox("已复制 SO 号: " + soNumber);
         }
 
         async function importDataFromGithub() {
+            updateResponseBox("正在导入数据");
+
             // 1. 弹窗让用户输入GitHub令牌
             const githubToken = prompt("请输入您的 GitHub 令牌：");
             if (!githubToken) {
@@ -498,12 +557,15 @@
                 if (response.ok) {
                     const csvText = await response.text();
                     populateTable(csvText); // 调用现有的函数以将数据填入页面
+                    updateResponseBox('数据导入成功');
                 } else {
                     const responseData = await response.json();
                     alert(`导入失败：${responseData.message}`);
+                    updateResponseBox('数据导入失败');
                 }
             } catch (error) {
                 alert(`导入过程中发生错误：${error.message}`);
+                updateResponseBox('数据导入失败');
             }
         }
 
@@ -556,16 +618,12 @@
                     rowCount++;
                 }
             });
+
+            // 为导入的 SO 列添加复制图标
+            addCopyToSOCells();
         }
 
-        async function submitDataToGithub() {
-            // 1. 弹窗让用户输入GitHub令牌
-            const githubToken = prompt("请输入您的 GitHub 令牌：");
-            if (!githubToken) {
-                alert("令牌不能为空！");
-                return;
-            }
-
+        async function submitDataToBackend() {
             const tableData = [];
             document.querySelectorAll(`#contentPreview2 table`).forEach(table => {
                 const headerData = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
@@ -587,56 +645,28 @@
             });
 
             try {
-                // 2. 通过GitHub API提交数据
-                const repoOwner = 'Ricky-cloud-star';  // 替换为您的GitHub用户名
-                const repoName = 'Zenactcod';           // 替换为您的仓库名称
-                const filePath = 'data/data.csv';       // 替换为文件路径，例如 'data/data.csv'
-                const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
-
-                // 对 CSV 内容进行 Base64 编码
-                const content = btoa(unescape(encodeURIComponent(csvContent)));
-
-                // 获取文件的 sha 值
-                let sha = null;
-                const getResponse = await fetch(url, {
-                    method: 'GET',
+                const response = await fetch('http://127.0.0.1:5000/api/saveData', {
+                    method: 'POST',
                     headers: {
-                        'Authorization': `token ${githubToken}`,
-                        'Accept': 'application/vnd.github.v3.raw'
-                    }
-                });
-
-                if (getResponse.ok) {
-                    const fileData = await getResponse.json();
-                    sha = fileData.sha;
-                }
-
-                // 构建 GitHub 请求的 payload
-                const payload = {
-                    "message": "Update data",
-                    "content": content,
-                    "sha": sha
-                };
-
-                // 发送 PUT 请求以在 GitHub 上创建或更新文件
-                const putResponse = await fetch(url, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${githubToken}`,
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'text/plain'
                     },
-                    body: JSON.stringify(payload)
+                    body: csvContent
                 });
 
-                if (putResponse.ok) {
-                    alert('数据已成功保存到 GitHub！');
+                if (response.ok) {
+                    updateResponseBox('数据导出成功');
                 } else {
-                    const responseData = await putResponse.json();
-                    alert(`保存到 GitHub 时发生错误：${responseData.message}`);
+                    const responseData = await response.json();
+                    updateResponseBox(`数据导出失败：${responseData.message}`);
                 }
             } catch (error) {
-                alert(`提交过程中发生错误：${error.message}`);
+                updateResponseBox(`数据导出失败：${error.message}`);
             }
+        }
+
+        function updateResponseBox(message) {
+            const responseMessage = document.getElementById('responseMessage');
+            responseMessage.textContent = message;
         }
     </script>
 </body>
