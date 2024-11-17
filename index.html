@@ -167,13 +167,13 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            background-color: #f0f0f0;
+            background-color: #f5f5f5; color: #2f2f2f;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: #ffffff;
+            background: #f9f9f1;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
@@ -190,7 +190,7 @@
             font-size: 10px;
             flex: 0 0 300px;
             height: 125px;
-            background-color: #f1f3f5;
+            background-color: #f0e6d6;
             padding: 15px;
             border-radius: 8px;
             box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
@@ -227,8 +227,8 @@
         }
 
         th {
-            background-color: #607d8b;
-            color: #fff;
+            background-color: #bca87e;
+            color: #000000;
             font-size: 12px;
         }
 
@@ -239,27 +239,30 @@
             transform: translateY(-50%);
             cursor: pointer;
             font-size: 14px;
-            color: #2196f3;
+            color: #d4af37;
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
     <!-- 第一个模块 -->
-    <div class="container" id="container1">
+    <div class="container" id="container1" style="align-items: flex-start;">
         <div class="leftPanel">
             <h1 class="header">DTS Software Licensing</h1>
 
             <!-- 选择文件按钮 -->
-            <div class="fileContainer" style="text-align: center; margin-bottom: 20px;">
+            <div class="fileContainer" style="text-align: left; margin-bottom: 20px;">
                 <input type="file" id="fileInput1" accept=".xlsx, .xlsm, .xls" />
             </div>
 
             <!-- 输入框和搜索按钮 -->
-            <div class="searchContainer">
+            <div class="searchContainer" style="display: inline-block; margin-left: 20px;">
                 <input type="text" class="jdeOrderNumber" id="jdeOrderNumber1" placeholder="Enter JDE Order Number">
                 <button class="searchButton" onclick="handleSearch1()">Search</button>
                 <button class="clearButton" onclick="clearResults1()">Clear</button>
+                
+                <input type="text" id="githubTokenInput" placeholder="Enter GitHub Token" style="margin-left: 10px;">
+                <button class="cloudSearchButton" onclick="handleCloudSearch1()">从云端搜索数据</button>
             </div>
 
             <!-- 表格显示区域 -->
@@ -282,7 +285,7 @@
         </div>
         <div class="rightPanel">
             <h3>查询结果</h3>
-            <div id="rowPosition1">请先选择文件并输入JDE Order Number。</div>
+            <div id="rowPosition1">请先选择文件并输入JDE订单号。</div>
         </div>
     </div>
 
@@ -331,7 +334,7 @@
                         const resultRow = document.createElement('tr');
                         for (let j = 0; j < 7; j++) {
                             const cell = document.createElement('td');
-                            cell.textContent = row[j] !== undefined ? row[j] : '';
+                            cell.textContent = (row[j] !== undefined && !isNaN(row[j]) && row[j] % 1 === 0) ? parseInt(row[j]) : row[j] !== undefined ? row[j] : '';
                             
                             // 添加复制图标
                             const copyIcon = document.createElement('span');
@@ -355,14 +358,132 @@
                 }
             }
 
+            async function handleCloudSearch1() {
+                const githubToken = document.getElementById('githubTokenInput').value.trim();
+                if (!githubToken) {
+                    alert("令牌不能为空！");
+                    return;
+                }
+                updateResponseBox("正在从云端获取数据");
+                if (!githubToken) {
+                    alert("令牌不能为空！");
+                    return;
+                }
+
+                const inputOrderNumber = document.getElementById('jdeOrderNumber1').value.trim();
+                try {
+                    const repoOwner = 'Ricky-cloud-star';
+                    const repoName = 'Mail-excel';
+                    const filePath = 'data/data.csv';
+                    const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `token ${githubToken}`,
+                            'Accept': 'application/vnd.github.v3.raw'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const csvText = await response.text();
+                        if (inputOrderNumber) {
+                            searchInCSV(csvText, inputOrderNumber);
+                        } else {
+                            populateTable(csvText);
+                        }
+                        updateResponseBox('数据导入成功');
+                    } else {
+                        const responseData = await response.json();
+                        alert(`导入失败：${responseData.message}`);
+                        updateResponseBox('数据导入失败');
+                    }
+                } catch (error) {
+                    alert(`导入过程中发生错误：${error.message}`);
+                    updateResponseBox('数据导入失败');
+                }
+            }
+
+            function searchInCSV(csvText, orderNumber) {
+                if (!csvText) {
+                    alert('导入的数据为空！');
+                    return;
+                }
+
+                const rows = csvText.trim().split("\n");
+                const resultBody = document.getElementById('resultBody1');
+                resultBody.innerHTML = '';
+
+                let found = false;
+                for (let i = 1; i < rows.length; i++) { // 跳过表头
+                    const rowArray = rows[i].split(",");
+                    if (rowArray[1] && rowArray[1].toString() === orderNumber) {
+                        const newRow = document.createElement('tr');
+                        for (let j = 0; j < 7; j++) {
+                            const cell = document.createElement('td');
+                            cell.textContent = (rowArray[j] !== undefined && !isNaN(rowArray[j]) && rowArray[j] % 1 === 0) ? parseInt(rowArray[j]) : rowArray[j] !== undefined ? rowArray[j] : '';
+                            
+                            // 添加复制图标
+                            const copyIcon = document.createElement('span');
+                            copyIcon.className = 'copyIcon';
+                            copyIcon.innerHTML = '📋';
+                            copyIcon.onclick = function() {
+                                copyCellContent(cell);
+                            };
+                            cell.appendChild(copyIcon);
+                            
+                            newRow.appendChild(cell);
+                        }
+                        resultBody.appendChild(newRow);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    document.getElementById('rowPosition1').textContent += "\n未找到订单数据。";
+                }
+            }
+
+            function populateTable(csvText) {
+                if (!csvText) {
+                    alert('导入的数据为空！');
+                    return;
+                }
+
+                const rows = csvText.trim().split("\n");
+                const resultBody = document.getElementById('resultBody1');
+                resultBody.innerHTML = '';
+
+                for (let i = 1; i < rows.length; i++) { // 跳过表头
+                    const rowArray = rows[i].split(",");
+                    const newRow = document.createElement('tr');
+                    for (let j = 0; j < 7; j++) {
+                        const cell = document.createElement('td');
+                        cell.textContent = (rowArray[j] !== undefined && !isNaN(rowArray[j]) && rowArray[j] % 1 === 0) ? parseInt(rowArray[j]) : rowArray[j] !== undefined ? rowArray[j] : '';
+                        
+                        // 添加复制图标
+                        const copyIcon = document.createElement('span');
+                        copyIcon.className = 'copyIcon';
+                        copyIcon.innerHTML = '📋';
+                        copyIcon.onclick = function() {
+                            copyCellContent(cell);
+                        };
+                        cell.appendChild(copyIcon);
+                        
+                        newRow.appendChild(cell);
+                    }
+                    resultBody.appendChild(newRow);
+                }
+            }
+
             function clearResults1() {
                 document.getElementById('resultBody1').innerHTML = '';
-                document.getElementById('rowPosition1').textContent = '请先选择文件并输入JDE Order Number。';
+                document.getElementById('rowPosition1').textContent = '请先选择文件并输入JDE订单号。';
                 document.getElementById('jdeOrderNumber1').value = '';
             }
 
             function copyCellContent(cell) {
-                const cellContent = cell.textContent.trim();
+                const cellContent = cell.cloneNode(true).childNodes[0] ? cell.cloneNode(true).childNodes[0].textContent.trim() : cell.textContent.trim();
                 if (cellContent === '') {
                     return;
                 }
@@ -377,13 +498,17 @@
                 document.getElementById('rowPosition1').textContent = "已复制内容: " + cellContent;
             }
 
+            function updateResponseBox(message) {
+                document.getElementById('rowPosition1').textContent = message;
+            }
+
             window.handleSearch1 = handleSearch1;
             window.clearResults1 = clearResults1;
+            window.handleCloudSearch1 = handleCloudSearch1;
         })();
     </script>
 </body>
 </html>
-
 
 ----------------------------------------------------------------------------------------------------------------------------
 
@@ -489,19 +614,23 @@
         }
 
         #responseBox {
-            width: 300px;
-            height: 50px;
-            border: 1px solid gray;
-            padding: 10px;
-            background-color: #f9f9f9;
+            width: 320px;
+            height: auto;
+            border: 2px solid #d4af37;
+            padding: 15px;
+            background-color: #fff8e1;
             position: absolute;
             top: 60px;
             right: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
         }
 
         #responseTitle {
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: #d4af37;
         }
     </style>
 </head>
@@ -524,7 +653,7 @@
         </div>
         <div id="responseBox">
             <div id="responseTitle">响应窗口</div>
-            <div id="responseMessage"></div>
+            <div id="responseMessage" style="font-size: 14px; color: #333;"></div>
         </div>
     </div>
 
