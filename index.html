@@ -952,6 +952,55 @@
             updateResponseBox("已复制 SO 号: " + soNumber);
         }
 
+        function validateData() {
+            if (!workbook) {
+                updateResponseBox("请先选择数据验证文件。");
+                return;
+            }
+
+            const validationSheet = workbook.Sheets[workbook.SheetNames[0]];
+            if (!validationSheet) {
+                updateResponseBox("未找到有效的工作表。");
+                return;
+            }
+
+            const validationData = XLSX.utils.sheet_to_json(validationSheet, { header: 1 });
+            const soIndex = validationData[0].indexOf("Order Reference ID");
+            const skuIndex = validationData[0].indexOf("SKU");
+            const validationOrders = validationData.slice(1);
+
+            let resultMessage = "数据验证通过，所有 SO 和 SKU 匹配。";
+            let allMatch = true;
+            let mismatchedPairs = [];
+
+            document.querySelectorAll(`#contentPreview2 table tbody tr`).forEach(row => {
+                const soValue = row.children[1].textContent.replace(/📋/g, '').trim();
+                const partNoValue = row.children[2].textContent.replace(/📋/g, '').trim();
+
+                const matchingRows = validationOrders.filter(order => order[soIndex].toString().trim() === soValue);
+                if (matchingRows.length > 0) {
+                    const isMatch = matchingRows.some(order => order[skuIndex].toString().trim() === partNoValue);
+                    if (!isMatch) {
+                        allMatch = false;
+                        mismatchedPairs.push({ so: soValue, partNo: partNoValue, expectedSku: matchingRows.map(row => row[skuIndex]).join(", ") });
+                    }
+                } else {
+                    allMatch = false;
+                    mismatchedPairs.push({ so: soValue, partNo: partNoValue, expectedSku: "未找到对应的 SKU" });
+                }
+            });
+
+            if (allMatch) {
+                updateResponseBox(resultMessage);
+            } else {
+                resultMessage = "数据验证失败，以下 SO 和 Part No 不匹配：\n";
+                mismatchedPairs.forEach(pair => {
+                    resultMessage += `SO: ${pair.so}, 页面 Part No: ${pair.partNo}, 期望 SKU: ${pair.expectedSku}\n`;
+                });
+                updateResponseBox(resultMessage);
+            }
+        }
+
     </script>
 </body>
 </html>
