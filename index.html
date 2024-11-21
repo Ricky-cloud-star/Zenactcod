@@ -89,72 +89,6 @@
 </body>
 </html>
 
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <title>Ricky的工具箱（开发中）</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f0f0f0;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            display: flex;
-            margin-top: 20px;
-        }
-
-        .leftPanel {
-            flex: 3;
-            margin-right: 20px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .toolContainer {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .comingSoonButton {
-            background-color: #4caf50;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .comingSoonButton:hover {
-            background-color: #45a049;
-        }
-    </style>
-</head>
-<body>
-    <!-- 模块3：Ricky的工具箱（开发中） -->
-    <div class="container" id="container3">
-        <div class="leftPanel">
-            <h1 class="header">Ricky的工具箱（开发中）</h1>
-            <div class="toolContainer">
-                <p>这里将会包含一些有用的工具，敬请期待！</p>
-                <button class="comingSoonButton" onclick="alert('功能开发中，敬请期待！')">测试按钮</button>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
-
 ------------------------------------------------------------------------------------------------------------------------------------
 
 <!DOCTYPE html>
@@ -265,6 +199,13 @@
                 <button class="cloudSearchButton" onclick="handleCloudSearch1()">从云端搜索数据</button>
             </div>
 
+            <!-- 选择数据验证文件按钮 -->
+            <div class="fileContainer" style="text-align: left; margin-top: 20px;">
+                <input type="file" id="validationFileInput" accept=".csv, .xlsx, .xlsm, .xls" />
+                <button class="validateButton" onclick="handleValidation()">查验数据</button>
+                <button class="validateButton2" onclick="handleValidation2()">查验数据2</button>
+            </div>
+
             <!-- 表格显示区域 -->
             <div id="contentPreview1">
                 <table class="resultTable" id="resultTable1">
@@ -293,8 +234,10 @@
         // 模块1的JavaScript功能
         (function() {
             let workbook1;
+            let validationWorkbook;
 
             document.getElementById('fileInput1').addEventListener('change', handleFile1);
+            document.getElementById('validationFileInput').addEventListener('change', handleValidationFile);
 
             function handleFile1(event) {
                 const file = event.target.files[0];
@@ -309,52 +252,16 @@
                 }
             }
 
-            function handleSearch1() {
-                if (!workbook1) {
-                    alert("请先选择Excel文件。");
-                    return;
-                }
-
-                const worksheet = workbook1.Sheets['Sheet1'];
-                if (!worksheet) {
-                    document.getElementById('rowPosition1').textContent = "未找到Sheet1。";
-                    return;
-                }
-
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                const inputOrderNumber = document.getElementById('jdeOrderNumber1').value.trim();
-                const resultBody = document.getElementById('resultBody1');
-                resultBody.innerHTML = '';
-
-                let found = false;
-                for (let i = 1; i < jsonData.length; i++) {
-                    const row = jsonData[i];
-                    const orderNumber = row[1];
-                    if (orderNumber && orderNumber.toString() === inputOrderNumber) {
-                        const resultRow = document.createElement('tr');
-                        for (let j = 0; j < 7; j++) {
-                            const cell = document.createElement('td');
-                            cell.textContent = (row[j] !== undefined && !isNaN(row[j]) && row[j] % 1 === 0) ? parseInt(row[j]) : row[j] !== undefined ? row[j] : '';
-                            
-                            // 添加复制图标
-                            const copyIcon = document.createElement('span');
-                            copyIcon.className = 'copyIcon';
-                            copyIcon.innerHTML = '📋';
-                            copyIcon.onclick = function() {
-                                copyCellContent(cell);
-                            };
-                            cell.appendChild(copyIcon);
-                            
-                            resultRow.appendChild(cell);
-                        }
-                        resultBody.appendChild(resultRow);
-                        document.getElementById('rowPosition1').textContent += `\n找到匹配数据，所在行：${i + 1}`;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    document.getElementById('rowPosition1').textContent += "\n未找到订单数据。";
+            function handleValidationFile(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const data = new Uint8Array(e.target.result);
+                        validationWorkbook = XLSX.read(data, { type: 'array' });
+                        document.getElementById('rowPosition1').textContent = `已选择验证文件：${file.name}`;
+                    };
+                    reader.readAsArrayBuffer(file);
                 }
             }
 
@@ -365,12 +272,9 @@
                     return;
                 }
                 updateResponseBox("正在从云端获取数据");
-                if (!githubToken) {
-                    alert("令牌不能为空！");
-                    return;
-                }
 
-                const inputOrderNumber = document.getElementById('jdeOrderNumber1').value.trim();
+                const inputOrderNumbers = document.getElementById('jdeOrderNumber1').value.trim().split('&');
+                const trimmedOrderNumbers = inputOrderNumbers.map(num => num.trim());
                 try {
                     const repoOwner = 'Ricky-cloud-star';
                     const repoName = 'Mail-excel';
@@ -387,11 +291,7 @@
 
                     if (response.ok) {
                         const csvText = await response.text();
-                        if (inputOrderNumber) {
-                            searchInCSV(csvText, inputOrderNumber);
-                        } else {
-                            populateTable(csvText);
-                        }
+                        searchInCSV(csvText, trimmedOrderNumbers);
                         updateResponseBox('数据导入成功');
                     } else {
                         const responseData = await response.json();
@@ -404,7 +304,56 @@
                 }
             }
 
-            function searchInCSV(csvText, orderNumber) {
+            function handleValidation2() {
+                if (!validationWorkbook) {
+                    alert("请先选择数据验证文件。");
+                    return;
+                }
+
+                const validationSheet = validationWorkbook.Sheets['Sheet1'];
+                if (!validationSheet) {
+                    document.getElementById('rowPosition1').textContent = "未找到Sheet1。";
+                    return;
+                }
+
+                const validationData = XLSX.utils.sheet_to_json(validationSheet, { header: 1 });
+                const orderReferenceIndex = validationData[0].indexOf("Order Reference ID");
+                const customerAccountIndex = validationData[0].indexOf("Customer Account Reference ID");
+                const customerIndex = validationData[0].indexOf("Customer");
+                const validationOrders = validationData.slice(1);
+
+                const displayedOrders = Array.from(document.querySelectorAll('#resultBody1 tr'));
+                let resultMessage = "";
+
+                displayedOrders.forEach(row => {
+                    const jdeOrderNumber = row.querySelector('td:nth-child(2)').childNodes[0].textContent.trim();
+                    const jdeAddressNumber = row.querySelector('td:nth-child(6)').childNodes[0].textContent.trim();
+                    const accountName = row.querySelector('td:nth-child(7)').childNodes[0].textContent.trim();
+
+                    const validationRow = validationOrders.find(order => order[orderReferenceIndex].toString().trim() === jdeOrderNumber);
+                    if (validationRow) {
+                        const expectedAddressNumber = validationRow[customerAccountIndex].toString().trim();
+                        const expectedAccountName = validationRow[customerIndex].toString().trim();
+
+                        if (jdeAddressNumber === expectedAddressNumber && accountName === expectedAccountName) {
+                            resultMessage += `订单号 ${jdeOrderNumber} 匹配正确。\n`;
+                        } else {
+                            if (jdeAddressNumber !== expectedAddressNumber) {
+                                resultMessage += `订单号 ${jdeOrderNumber} 的 JDE Address Number 不一致。\n`;
+                            }
+                            if (accountName !== expectedAccountName) {
+                                resultMessage += `订单号 ${jdeOrderNumber} 的 Account Name 不一致。\n`;
+                            }
+                        }
+                    } else {
+                        resultMessage += `订单号 ${jdeOrderNumber} 在验证文件中未找到。\n`;
+                    }
+                });
+
+                document.getElementById('rowPosition1').textContent = resultMessage || "数据验证通过，所有订单号匹配。";
+            }
+
+            function searchInCSV(csvText, orderNumbers) {
                 if (!csvText) {
                     alert('导入的数据为空！');
                     return;
@@ -417,26 +366,24 @@
                 let found = false;
                 for (let i = 1; i < rows.length; i++) { // 跳过表头
                     const rowArray = rows[i].split(",");
-                    if (rowArray[1] && rowArray[1].toString() === orderNumber) {
+                    if (orderNumbers.includes(rowArray[1].replace('.0', '').toString())) {
                         const newRow = document.createElement('tr');
                         for (let j = 0; j < 7; j++) {
                             const cell = document.createElement('td');
                             cell.textContent = (rowArray[j] !== undefined && !isNaN(rowArray[j]) && rowArray[j] % 1 === 0) ? parseInt(rowArray[j]) : rowArray[j] !== undefined ? rowArray[j] : '';
-                            
-                            // 添加复制图标
-                            const copyIcon = document.createElement('span');
-                            copyIcon.className = 'copyIcon';
-                            copyIcon.innerHTML = '📋';
-                            copyIcon.onclick = function() {
-                                copyCellContent(cell);
-                            };
-                            cell.appendChild(copyIcon);
-                            
+                            if (j === 1 || j === 2 || j === 3 || j === 4 || j === 5 || j === 6) { // 添加复制图标
+                                const copyIcon = document.createElement('span');
+                                copyIcon.className = 'copyIcon';
+                                copyIcon.innerHTML = '📋';
+                                copyIcon.onclick = function() {
+                                    copyCellContent(cell);
+                                };
+                                cell.appendChild(copyIcon);
+                            }
                             newRow.appendChild(cell);
                         }
                         resultBody.appendChild(newRow);
                         found = true;
-                        break;
                     }
                 }
                 if (!found) {
@@ -444,36 +391,34 @@
                 }
             }
 
-            function populateTable(csvText) {
-                if (!csvText) {
-                    alert('导入的数据为空！');
+            function handleValidation() {
+                if (!validationWorkbook) {
+                    alert("请先选择数据验证文件。");
                     return;
                 }
 
-                const rows = csvText.trim().split("\n");
-                const resultBody = document.getElementById('resultBody1');
-                resultBody.innerHTML = '';
-
-                for (let i = 1; i < rows.length; i++) { // 跳过表头
-                    const rowArray = rows[i].split(",");
-                    const newRow = document.createElement('tr');
-                    for (let j = 0; j < 7; j++) {
-                        const cell = document.createElement('td');
-                        cell.textContent = (rowArray[j] !== undefined && !isNaN(rowArray[j]) && rowArray[j] % 1 === 0) ? parseInt(rowArray[j]) : rowArray[j] !== undefined ? rowArray[j] : '';
-                        
-                        // 添加复制图标
-                        const copyIcon = document.createElement('span');
-                        copyIcon.className = 'copyIcon';
-                        copyIcon.innerHTML = '📋';
-                        copyIcon.onclick = function() {
-                            copyCellContent(cell);
-                        };
-                        cell.appendChild(copyIcon);
-                        
-                        newRow.appendChild(cell);
-                    }
-                    resultBody.appendChild(newRow);
+                const validationSheet = validationWorkbook.Sheets['Sheet1'];
+                if (!validationSheet) {
+                    document.getElementById('rowPosition1').textContent = "未找到Sheet1。";
+                    return;
                 }
+
+                const validationData = XLSX.utils.sheet_to_json(validationSheet, { header: 1 });
+                const orderReferenceIds = validationData.slice(1).map(row => row[validationData[0].indexOf("Order Reference ID")].toString().trim());
+
+                const displayedOrderNumbers = Array.from(document.querySelectorAll('#resultBody1 tr td:nth-child(2)')).map(td => td.childNodes[0].textContent.trim());
+
+                let missingInValidation = displayedOrderNumbers.filter(orderNumber => !orderReferenceIds.includes(orderNumber));
+                let missingInDisplay = orderReferenceIds.filter(orderId => !displayedOrderNumbers.includes(orderId));
+
+                let resultMessage = "";
+                if (missingInValidation.length > 0) {
+                    resultMessage += `在验证文件中缺少的订单号: ${missingInValidation.join(", ")}\n`;
+                }
+                if (missingInDisplay.length > 0) {
+                    resultMessage += `在下方表格中缺少的订单号: ${missingInDisplay.join(", ")}`;
+                }
+                document.getElementById('rowPosition1').textContent = resultMessage || "数据验证通过，所有订单号匹配。";
             }
 
             function clearResults1() {
@@ -483,7 +428,7 @@
             }
 
             function copyCellContent(cell) {
-                const cellContent = cell.cloneNode(true).childNodes[0] ? cell.cloneNode(true).childNodes[0].textContent.trim() : cell.textContent.trim();
+                const cellContent = cell.childNodes[0] ? cell.childNodes[0].textContent.trim() : cell.textContent.trim();
                 if (cellContent === '') {
                     return;
                 }
@@ -502,17 +447,18 @@
                 document.getElementById('rowPosition1').textContent = message;
             }
 
-            window.handleSearch1 = handleSearch1;
+            window.handleSearch1 = handleCloudSearch1;
             window.clearResults1 = clearResults1;
             window.handleCloudSearch1 = handleCloudSearch1;
+            window.handleValidation = handleValidation;
+            window.handleValidation2 = handleValidation2;
         })();
     </script>
 </body>
 </html>
-
 ----------------------------------------------------------------------------------------------------------------------------
 
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
@@ -553,13 +499,13 @@
             text-align: left;
         }
 
-        #partNoInput, #addButton, #addButton2, #submitButton, #importButton {
+        #partNoInput, #addButton, #addButton2, #autoAddButton, #submitButton, #importButton, #fileSelectButton, #validateButton {
             padding: 8px;
             font-size: 14px;
             margin-right: 5px;
         }
 
-        #addButton, #addButton2, #submitButton, #importButton {
+        #addButton, #addButton2, #autoAddButton, #submitButton, #importButton, #fileSelectButton, #validateButton {
             background-color: #4caf50;
             color: white;
             border: none;
@@ -567,7 +513,7 @@
             cursor: pointer;
         }
 
-        #addButton:hover, #addButton2:hover, #submitButton:hover, #importButton:hover {
+        #addButton:hover, #addButton2:hover, #autoAddButton:hover, #submitButton:hover, #importButton:hover, #fileSelectButton:hover, #validateButton:hover {
             background-color: #45a049;
         }
 
@@ -620,7 +566,7 @@
             padding: 15px;
             background-color: #fff8e1;
             position: absolute;
-            top: 60px;
+            top: 20px; /* 将响应窗口上移，与标题平行 */
             right: 20px;
             border-radius: 8px;
             box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
@@ -633,6 +579,7 @@
             color: #d4af37;
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="container" id="container2">
@@ -643,8 +590,11 @@
                 <input type="text" id="partNoInput" placeholder="Enter SO">
                 <button id="addButton" onclick="addNewRow()">新增</button>
                 <button id="addButton2" onclick="addNewHeader()">新增2</button>
+                <button id="autoAddButton" onclick="autoAddRows()">自动新增</button> <!-- 新增的自动新增按钮 -->
                 <button id="submitButton" onclick="submitDataToBackend()">提交数据</button>
                 <button id="importButton" onclick="importDataFromGithub()">导入数据</button>
+                <input type="file" id="fileInput" accept=".csv, .xlsx, .xlsm, .xls" style="margin-right: 5px;">
+                <button id="validateButton" onclick="validateData()">数据核验</button>
             </div>
 
             <div id="contentPreview2">
@@ -660,73 +610,21 @@
     <script>
         let headerCounter = 1;
         let rowCount = 1;
+        let workbook;
 
-        function addNewRow() {
-            const partNoInput = document.getElementById('partNoInput');
-            const soValue = partNoInput.value.trim();
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
 
-            if (soValue === "") {
-                alert("请输入 SO！");
-                return;
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const data = new Uint8Array(e.target.result);
+                    workbook = XLSX.read(data, { type: 'array' });
+                    updateResponseBox(`已选择文件：${file.name}`);
+                };
+                reader.readAsArrayBuffer(file);
             }
-
-            const lastTableBody = document.querySelector(`#contentPreview2 table:last-of-type tbody`);
-            if (!lastTableBody) {
-                alert("请先新增一个表头。");
-                return;
-            }
-
-            const newRow = document.createElement('tr');
-
-            const serialNumberCell = document.createElement('td');
-            serialNumberCell.textContent = rowCount++;
-            newRow.appendChild(serialNumberCell);
-
-            const soCell = document.createElement('td');
-            soCell.textContent = soValue;
-            newRow.appendChild(soCell);
-
-            const partNoCell = document.createElement('td');
-            partNoCell.contentEditable = true;
-            newRow.appendChild(partNoCell);
-
-            const qtyCell = document.createElement('td');
-            qtyCell.contentEditable = true;
-            newRow.appendChild(qtyCell);
-
-            const serialCell = document.createElement('td');
-            serialCell.contentEditable = true;
-            newRow.appendChild(serialCell);
-
-            const dateCell = document.createElement('td');
-            const today = new Date();
-            const formattedDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-            dateCell.textContent = formattedDate;
-            dateCell.contentEditable = true;
-            newRow.appendChild(dateCell);
-
-            // 添加一键复制按钮和删除按钮
-            const actionCell = document.createElement('td');
-            const copyButton = document.createElement('button');
-            copyButton.textContent = "一键复制";
-            copyButton.className = "copyButton";
-            copyButton.onclick = function() {
-                copySerialNumber(serialCell);
-            };
-            actionCell.appendChild(copyButton);
-
-            const deleteButton = document.createElement('button');
-            deleteButton.textContent = "删除";
-            deleteButton.className = "deleteButton";
-            deleteButton.onclick = function() {
-                lastTableBody.removeChild(newRow);
-            };
-            actionCell.appendChild(deleteButton);
-
-            newRow.appendChild(actionCell);
-
-            lastTableBody.appendChild(newRow);
-            partNoInput.value = "";
         }
 
         function addNewHeader() {
@@ -762,60 +660,6 @@
             newTable.appendChild(tbody);
 
             container2.appendChild(newTable);
-        }
-
-        // 复制序列号内容的函数
-        function copySerialNumber(serialCell) {
-            const serialNumber = serialCell.textContent.trim();
-            if (serialNumber === "") {
-                updateResponseBox("序列号为空，无法复制！");
-                return;
-            }
-
-            // 创建一个临时文本区域来复制内容
-            const tempInput = document.createElement('textarea');
-            tempInput.value = serialNumber;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
-
-            updateResponseBox("已复制序列号: " + serialNumber);
-        }
-
-        function addCopyToSOCells() {
-            document.querySelectorAll(`#contentPreview2 table tbody tr`).forEach(row => {
-                const soCell = row.children[1]; // Assuming the SO column is the second column
-                if (soCell && !soCell.querySelector('.copyIcon')) {
-                    const copyIcon = document.createElement('span');
-                    copyIcon.textContent = '📋';
-                    copyIcon.style.cursor = 'pointer';
-                    copyIcon.className = 'copyIcon';
-                    copyIcon.style.marginLeft = '5px';
-                    copyIcon.onclick = function() {
-                        copySO(soCell);
-                    };
-                    soCell.appendChild(copyIcon);
-                }
-            });
-        }
-
-        function copySO(soCell) {
-            const soNumber = soCell.childNodes[0] ? soCell.childNodes[0].textContent.trim() : soCell.textContent.trim();
-            if (soNumber === "") {
-                updateResponseBox("SO 号为空，无法复制！");
-                return;
-            }
-
-            // 创建一个临时文本区域来复制内容
-            const tempInput = document.createElement('textarea');
-            tempInput.value = soNumber;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
-
-            updateResponseBox("已复制 SO 号: " + soNumber);
         }
 
         async function importDataFromGithub() {
@@ -912,6 +756,121 @@
             addCopyToSOCells();
         }
 
+        function autoAddRows() {
+            const partNoInput = document.getElementById('partNoInput').value.trim();
+            if (!workbook) {
+                updateResponseBox("请先选择文件。");
+                return;
+            }
+
+            if (!partNoInput) {
+                updateResponseBox("请输入订单号。");
+                return;
+            }
+
+            const orderNumbers = partNoInput.split('&').map(order => order.trim());
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+            const headers = data[0];
+            const orderNumberIndex = headers.indexOf("Order Number");
+            const lnTyIndex = headers.indexOf("Ln Ty");
+            const itemNumberIndex = headers.indexOf("2nd Item Number");
+
+            if (orderNumberIndex === -1 || lnTyIndex === -1 || itemNumberIndex === -1) {
+                updateResponseBox("Excel 文件缺少必要的列。");
+                return;
+            }
+
+            orderNumbers.forEach(orderNumber => {
+                // 为每个订单号创建一个新表头
+                addNewHeader();
+                const newTableBody = document.querySelector(`#resultTable2_${headerCounter} tbody`);
+
+                let rowCountForOrder = 0;
+                data.slice(1).forEach(row => {
+                    if (row[orderNumberIndex] == orderNumber && row[lnTyIndex] === "N1") {
+                        rowCountForOrder++;
+
+                        const newRow = document.createElement('tr');
+
+                        const serialNumberCell = document.createElement('td');
+                        serialNumberCell.textContent = rowCount++;
+                        newRow.appendChild(serialNumberCell);
+
+                        const soCell = document.createElement('td');
+                        soCell.textContent = orderNumber;
+                        newRow.appendChild(soCell);
+
+                        const partNoCell = document.createElement('td');
+                        partNoCell.textContent = row[itemNumberIndex];
+                        newRow.appendChild(partNoCell);
+
+                        const qtyCell = document.createElement('td');
+                        qtyCell.contentEditable = true;
+                        newRow.appendChild(qtyCell);
+
+                        const serialCell = document.createElement('td');
+                        serialCell.contentEditable = true;
+                        newRow.appendChild(serialCell);
+
+                        const dateCell = document.createElement('td');
+                        const today = new Date();
+                        const formattedDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+                        dateCell.textContent = formattedDate;
+                        dateCell.contentEditable = true;
+                        newRow.appendChild(dateCell);
+
+                        // 添加一键复制按钮和删除按钮
+                        const actionCell = document.createElement('td');
+                        const copyButton = document.createElement('button');
+                        copyButton.textContent = "一键复制";
+                        copyButton.className = "copyButton";
+                        copyButton.onclick = function() {
+                            copySerialNumber(serialCell);
+                        };
+                        actionCell.appendChild(copyButton);
+
+                        const deleteButton = document.createElement('button');
+                        deleteButton.textContent = "删除";
+                        deleteButton.className = "deleteButton";
+                        deleteButton.onclick = function() {
+                            newTableBody.removeChild(newRow);
+                        };
+                        actionCell.appendChild(deleteButton);
+
+                        newRow.appendChild(actionCell);
+
+                        newTableBody.appendChild(newRow);
+                    }
+                });
+
+                if (rowCountForOrder === 0) {
+                    updateResponseBox(`未找到订单号 ${orderNumber} 的任何匹配行。`);
+                }
+            });
+
+            updateResponseBox("自动新增完成。");
+        }
+
+        // 复制序列号内容的函数
+        function copySerialNumber(serialCell) {
+            const serialNumber = serialCell.textContent.trim();
+            if (serialNumber === "") {
+                updateResponseBox("序列号为空，无法复制！");
+                return;
+            }
+
+            // 创建一个临时文本区域来复制内容
+            const tempInput = document.createElement('textarea');
+            tempInput.value = serialNumber;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            updateResponseBox("已复制序列号: " + serialNumber);
+        }
+
         async function submitDataToBackend() {
             const tableData = [];
             document.querySelectorAll(`#contentPreview2 table`).forEach(table => {
@@ -957,6 +916,42 @@
             const responseMessage = document.getElementById('responseMessage');
             responseMessage.textContent = message;
         }
+
+        function addCopyToSOCells() {
+            document.querySelectorAll(`#contentPreview2 table tbody tr`).forEach(row => {
+                const soCell = row.children[1]; // Assuming the SO column is the second column
+                if (soCell && !soCell.querySelector('.copyIcon')) {
+                    const copyIcon = document.createElement('span');
+                    copyIcon.textContent = '📋';
+                    copyIcon.style.cursor = 'pointer';
+                    copyIcon.className = 'copyIcon';
+                    copyIcon.style.marginLeft = '5px';
+                    copyIcon.onclick = function() {
+                        copySO(soCell);
+                    };
+                    soCell.appendChild(copyIcon);
+                }
+            });
+        }
+
+        function copySO(soCell) {
+            const soNumber = soCell.childNodes[0] ? soCell.childNodes[0].textContent.trim() : soCell.textContent.trim();
+            if (soNumber === "") {
+                updateResponseBox("SO 号为空，无法复制！");
+                return;
+            }
+
+            // 创建一个临时文本区域来复制内容
+            const tempInput = document.createElement('textarea');
+            tempInput.value = soNumber;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            updateResponseBox("已复制 SO 号: " + soNumber);
+        }
+
     </script>
 </body>
 </html>
